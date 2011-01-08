@@ -147,9 +147,9 @@ static vector_t vfloor(vector_t v)
 	int32_t kk = (int32_t)ijk.farr[2] % 256;
 	
 	uint32_t gi[4] = {	perm[ii + perm[jj + perm[kk]]] % 12,
-						perm[(ii + i1 + perm[(jj + j1 + perm[(kk + k1)])])] % 12,
-						perm[(ii + i2 + perm[(jj + j2 + perm[(kk + k2)])])] % 12,
-						perm[(ii + 1 + perm[(jj + 1 + perm[(kk + 1)])])] % 12};
+						perm[ii + i1 + perm[jj + j1 + perm[kk + k1]]] % 12,
+						perm[ii + i2 + perm[jj + j2 + perm[kk + k2]]] % 12,
+						perm[ii + 1 + perm[jj + 1 + perm[kk + 1]]] % 12};
 	
 	float n[4] = {0.0f,0.0f,0.0f,0.0f};
 	

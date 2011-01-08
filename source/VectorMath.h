@@ -108,6 +108,14 @@ typedef struct _rt
 } range3d_t;
 
 
+typedef struct v3i_s
+{
+	int x,y,z;
+} v3i_t;
+
+
+
+
 #ifdef VMATH_USE_ALTIVEC
 static inline vector vmfloat_t vec_zero( void )
 {
@@ -204,6 +212,30 @@ static inline matrix_t mCreateFromFloats(vmfloat_t a, vmfloat_t b, vmfloat_t c, 
 	return mm;
 //	return (matrix_t){.farr={a,b,c,d, e,f,g,h, i,j,k,l, m,n,o,p}};
 }
+
+static inline matrix_t mCreateFromBases(vector_t a, vector_t b, vector_t c)
+{
+	matrix_t mm;
+	vmfloat_t* farr = mm.varr->farr;
+	farr[0] = a.farr[0];
+	farr[1] = a.farr[1];
+	farr[2] = a.farr[2];
+	farr[3] = a.farr[3];
+	farr[4] = b.farr[0];
+	farr[5] = b.farr[1];
+	farr[6] = b.farr[2];
+	farr[7] = b.farr[3];
+	farr[8] = c.farr[0];
+	farr[9] = c.farr[1];
+	farr[10] = c.farr[2];
+	farr[11] = c.farr[3];
+	farr[12] = 0.0;
+	farr[13] = 0.0;
+	farr[14] = 0.0;
+	farr[15] = 1.0;
+	return mm;
+}
+
 
 static inline matrix_t mAdjoint(matrix_t m)
 {
@@ -367,6 +399,7 @@ matrix_t mRotationMatrixAxisAngle(vector_t v, vmfloat_t a);
 matrix_t mOrtho(vector_t min, vector_t max);
 matrix_t mOrthogonalize(matrix_t m);
 matrix_t mOrthonormalize(matrix_t m);
+
 
 static inline matrix_t mTranslationMatrix(vector_t v)
 {
@@ -692,6 +725,13 @@ static inline vector_t vUnW(vector_t a)
 	return v;
 }
 
+static inline vector_t vReflect(vector_t a, vector_t b)
+{
+	vector_t par = vProjectAOnB(a, b);
+	vector_t per = v3Sub(a, par);
+	return v3Sub(par, per);
+}
+
 
 
 static inline range3d_t rEmptyRange(void)
@@ -832,6 +872,25 @@ static inline range3d_t mTransformRangeRobust(matrix_t m, range3d_t r)
 		res.maxv = vMax(res.maxv, c);
 	}
 	return res;
+}
+
+static inline matrix_t mRotationFromTo(vector_t a, vector_t b, vmfloat_t f)
+{
+	double rdot = vDot(a, b);
+	vector_t rcross = vCross(a, b);
+	vector_t raxis = vSetLength(rcross, 1.0);
+	double angle = atan2(vLength(rcross), (rdot));
+	matrix_t rm = mRotationMatrixAxisAngle(raxis, angle*f);
+
+	return rm;
+}
+
+static inline matrix_t mRotationFromToOnAxis(vector_t a, vector_t b, vector_t c, vmfloat_t f)
+{
+	a = v3Sub(a, vProjectAOnB(a, c));
+	b = v3Sub(b, vProjectAOnB(b, c));
+	
+	return mRotationFromTo(a,b, f);
 }
 
 

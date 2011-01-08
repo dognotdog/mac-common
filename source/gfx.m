@@ -568,6 +568,22 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	numNormals = c;
 }
 
+- (void) setColors: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
+{
+	if (colors)
+		free(colors);
+	
+	if (doCopy)
+	{
+		colors = calloc(sizeof(vector_t), c);
+		memcpy(colors, v, (sizeof(vector_t)*c));
+	}
+	else
+		colors = v;
+	
+	numColors = c;
+}
+
 - (void) setTexCoords: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
 {
 	if (texCoords)
@@ -1939,7 +1955,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	if (!self)
 		return nil;
 
-	glGenFramebuffersEXT(1, &fbo);
+	glGenFramebuffers(1, &fbo);
 	
 
 	return self;
@@ -1952,24 +1968,24 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		return nil;
 
 	if (!fbo)
-		glGenFramebuffersEXT(1, &fbo);
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo);
-	glFramebufferTextureEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT, texId, 0);
+		glGenFramebuffers(1, &fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texId, 0);
 	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
 
-	GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
 	switch (status) 
 	{
-		case GL_FRAMEBUFFER_COMPLETE_EXT:
+		case GL_FRAMEBUFFER_COMPLETE:
 			break;
 		default:
 			NSLog(@"FBO setup error: 0x%X", status);
 			break;
 	}
 
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	
 
 	return self;
@@ -1979,14 +1995,14 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void) finalize
 {
 	if (fbo)
-		[GLResourceDisposal disposeOfResourcesWithTypes: fbo, GL_FRAMEBUFFER_EXT, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: fbo, GL_FRAMEBUFFER, NULL];
 
 	[super finalize];
 }
 
 - (void)dealloc
 {
-	glDeleteFramebuffersEXT(1, &fbo);
+	glDeleteFramebuffers(1, &fbo);
 	[super dealloc];
 }
 
@@ -2031,7 +2047,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 - (void) setupForRendering
 {
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, [fbo fbo]);
+	glBindFramebuffer(GL_FRAMEBUFFER, [fbo fbo]);
 	
 	glPushAttrib(GL_VIEWPORT_BIT | GL_SCISSOR_BIT | GL_ALL_ATTRIB_BITS);
 	
@@ -2047,7 +2063,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 - (void) cleanupAfterRendering
 {
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glPopAttrib();
 }
 
@@ -3130,11 +3146,11 @@ static GLResourceDisposal* _sharedDisposal = nil;
 					vbos = realloc(vbos, sizeof(*vbos)*(numVbos+1));
 					vbos[numVbos++] = rsrc;
 					break;
-				case GL_FRAMEBUFFER_EXT:
+				case GL_FRAMEBUFFER:
 					fbos = realloc(fbos, sizeof(*fbos)*(numFbos+1));
 					fbos[numFbos++] = rsrc;
 					break;
-				case GL_RENDERBUFFER_EXT:
+				case GL_RENDERBUFFER:
 					rbos = realloc(rbos, sizeof(*rbos)*(numRbos+1));
 					rbos[numRbos++] = rsrc;
 					break;
@@ -3155,16 +3171,20 @@ static GLResourceDisposal* _sharedDisposal = nil;
 {
 	[lock lock];
 
-	glDeleteTextures(numTextures, textures);
+	if (numTextures)
+		glDeleteTextures(numTextures, textures);
 	numTextures = 0;
 	
-	glDeleteFramebuffersEXT(numFbos, fbos);
+	if (numFbos)
+		glDeleteFramebuffers(numFbos, fbos);
 	numFbos = 0;
 
-	glDeleteRenderbuffersEXT(numRbos, rbos);
+	if (numRbos)
+		glDeleteRenderbuffers(numRbos, rbos);
 	numRbos = 0;
 
-	glDeleteBuffers(numVbos, vbos);
+	if (numVbos)
+		glDeleteBuffers(numVbos, vbos);
 	numVbos = 0;
 	
 	for (size_t i = 0; i < numPrograms; ++i)
