@@ -555,6 +555,11 @@ static inline vector_t v3Sub(vector_t a, vector_t b)
 	return vCreate(a.farr[0] - b.farr[0], a.farr[1] - b.farr[1], a.farr[2] - b.farr[2], a.farr[3]);
 }
 
+static inline vector_t v3Floor(vector_t a)
+{
+	return vCreate(floor(a.farr[0]), floor(a.farr[1]), floor(a.farr[2]), a.farr[3]);
+}
+
 static inline vector_t vMin(vector_t a, vector_t b)
 {
 #ifdef VMATH_USE_ALTIVEC
@@ -997,6 +1002,29 @@ static inline vector_t vInertiaOfBox(double mass, vector_t size)
 	double mf = (1.0/12.0)*mass;
 	return vCreateDir(mf*(size.farr[1]*size.farr[1] + size.farr[2]*size.farr[2]), mf*(size.farr[0]*size.farr[0] + size.farr[2]*size.farr[2]), mf*(size.farr[1]*size.farr[1] + size.farr[0]*size.farr[0]));
 }
+
+static inline vmfloat_t xLinePlane(const vector_t lineStart, const vector_t lineRay, const vector_t pointOnPlane, const vector_t planeNormal)
+{
+	vector_t lineEnd = v3Add(lineStart, lineRay);
+	
+	vmfloat_t d = vDot(pointOnPlane, planeNormal);
+	vmfloat_t nom = d - vDot(lineStart, planeNormal);
+	vmfloat_t den = vDot(v3Sub(lineEnd, lineStart), planeNormal);
+	vmfloat_t t = nom/den;
+	return t;
+}
+
+static inline vmfloat_t xPointPlaneDistance(const vector_t C, const vector_t P, const vector_t N, vector_t* xptr)
+{
+	vector_t D = v3Sub(P, C);
+	vmfloat_t d = vDot(D, N);
+
+	vector_t DN = v3MulScalar(N,d);
+	vector_t X = v3Add(C, DN);
+	*xptr = X;
+	return d;
+}
+
 
 #ifdef __gl_h_
 
