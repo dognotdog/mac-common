@@ -133,6 +133,12 @@ void MTwisterCRefill(int mti, unsigned int* mt)
 	[super dealloc];
 }
 
+- (void) finalize
+{
+	free(mt);
+	[super finalize];
+}
+
 - (unsigned int) randomNumber
 {
 	unsigned int y;

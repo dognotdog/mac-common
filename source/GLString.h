@@ -30,12 +30,12 @@
 
 - (void) freeGLResources;
 
-@property BOOL antialias;
-@property BOOL subpixelAA;
-@property BOOL filterTexture;
-@property BOOL mipmapTexture;
-@property double texturePadding;
-@property(readonly) NSSize textureSize;
+@property(nonatomic) BOOL antialias;
+@property(nonatomic) BOOL subpixelAA;
+@property(nonatomic) BOOL filterTexture;
+@property(nonatomic) BOOL mipmapTexture;
+@property(nonatomic) double texturePadding;
+@property(nonatomic,readonly) NSSize textureSize;
 @property(readonly) GLuint texName;
 
 @end
@@ -51,15 +51,15 @@
 	double		cornerRadius;
 }
 
-@property(retain) NSColor* fillColor;
-@property(retain) NSColor* borderColor;
+@property(nonatomic,retain) NSColor* fillColor;
+@property(nonatomic,retain) NSColor* borderColor;
 
-@property double innerRadius;
-@property double outerRadius;
-@property double startAngle;
-@property double endAngle;
-@property double borderWidth;
-@property double cornerRadius;
+@property(nonatomic) double innerRadius;
+@property(nonatomic) double outerRadius;
+@property(nonatomic) double startAngle;
+@property(nonatomic) double endAngle;
+@property(nonatomic) double borderWidth;
+@property(nonatomic) double cornerRadius;
 
 @end
 
@@ -72,12 +72,12 @@
 	double		borderWidth;
 }
 
-@property(retain) NSColor* boxColor;
-@property(retain) NSColor* borderColor;
+@property(nonatomic,retain) NSColor* boxColor;
+@property(nonatomic,retain) NSColor* borderColor;
 
-@property NSSize frameSize;
-@property double cornerRadius;
-@property double borderWidth;
+@property(nonatomic) NSSize frameSize;
+@property(nonatomic) double cornerRadius;
+@property(nonatomic) double borderWidth;
 
 @end
 
@@ -119,7 +119,7 @@
 - (void) setAttributedString:(NSAttributedString *)attributedString; // set string after initial creation
 - (void) setString:(NSString *)aString withAttributes:(NSDictionary *)attribs; // set string after initial creation
 
-@property(retain) NSColor* textColor;
+@property(nonatomic,retain) NSColor* textColor;
 
 @end
 

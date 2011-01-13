@@ -74,7 +74,7 @@
 {
 	if ([type isEqual: @"effect"])
 	{
-		SimpleMaterialNode* mat = [SimpleMaterialNode new];
+		SimpleMaterialNode* mat = [[SimpleMaterialNode new] autorelease];
 		if ([params objectForKey: @"diffuseColor"])
 			[mat setDiffuseColor: [[params objectForKey: @"diffuseColor"] vectorValue]];
 		
@@ -138,7 +138,7 @@
 
 - (id) asGfxNode
 {
-	GfxNode* node = [GfxNode new];
+	GfxNode* node = [[GfxNode new] autorelease];
 	for (id gfx in finalNodes)
 		[node addChild: gfx];
 	return node;
@@ -611,7 +611,7 @@
 	if ([[trianglesElement attributeForName: @"material"] stringValue])
 	{
 		ColladaParameter* material = [self parameterForUrl: [[trianglesElement attributeForName: @"material"] stringValue]];
-		GfxNode* node = [GfxNode new];
+		GfxNode* node = [[GfxNode new] autorelease];
 		
 		[node addChild: [material asGfxNode]];
 		[node addChild: gfxMesh];
@@ -716,7 +716,7 @@ static NSValue* colorFromXmlElement(NSXMLElement* element)
 	}
 	else if ([ename isEqual: @"texture"])
 	{
-		ColladaParameter* texture = [ColladaParameter new];
+		ColladaParameter* texture = [[ColladaParameter new] autorelease];
 		[texture setType: @"texture"];
 		[[texture params] setObject: [self parameterForUrl: [[element attributeForName: @"texture"] stringValue]] forKey: @"source"];
 		[[texture params] setObject: [[element attributeForName: @"texcoord"] stringValue] forKey: @"texcoord"];
@@ -1136,7 +1136,7 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 		return nil;
 
 	NSError* err = nil;
-	NSXMLDocument* doc = [[NSXMLDocument alloc] initWithContentsOfURL: [NSURL fileURLWithPath: path] options: NSXMLDocumentTidyXML error: &err];
+	NSXMLDocument* doc = [[[NSXMLDocument alloc] initWithContentsOfURL: [NSURL fileURLWithPath: path] options: NSXMLDocumentTidyXML error: &err] autorelease];
 	
 	if (!doc)
 	{

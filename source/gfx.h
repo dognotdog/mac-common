@@ -30,6 +30,7 @@ void	_LogGLError(NSString* str);
 	vector_t*	colors;
 	size_t numVertices, numNormals, numTexCoords, numColors;
 	
+	
 	uint32_t*	indices;
 	size_t		numIndices;
 	
@@ -41,6 +42,8 @@ void	_LogGLError(NSString* str);
 	GLTexture*		texture;
 	
 	GLuint	vertexBuffer, normalBuffer, texCoordBuffer, colorBuffer, indexBuffer;
+	
+	BOOL	needsDataUpdate;
 }
 
 - (void) setVertices: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
@@ -98,6 +101,8 @@ void	_LogGLError(NSString* str);
 @property(readonly) size_t numIndices;
 
 @property(readonly) range3d_t vertexBounds;
+
+//@property(nonatomic) BOOL needsDataUpdate;
 
 @end
 

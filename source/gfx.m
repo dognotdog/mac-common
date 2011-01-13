@@ -358,7 +358,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void) dealloc
 {
 	if (programHandle)
-		glDeleteProgram(programHandle);
+		[GLResourceDisposal disposeOfResourcesWithTypes: (size_t)programHandle, GL_SHADER_OBJECT_ARB, NULL];
 
 	[super dealloc];
 }
@@ -525,7 +525,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		glDeleteBuffers(1, & indexBuffer);
 		
 	[batches release];
-	
+	[texture release];
+	[transform release];
 	[super dealloc];
 }
 
@@ -533,6 +534,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 {
 	if (vertices)
 		free(vertices);
+		
 	
 	if (doCopy)
 	{
@@ -550,6 +552,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	}
 	
 	numVertices = c;
+	needsDataUpdate = YES;
 }
 
 - (void) setNormals: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
@@ -557,6 +560,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	if (normals)
 		free(normals);
 	
+
 	if (doCopy)
 	{
 		normals = calloc(sizeof(vector_t), c);
@@ -566,6 +570,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		normals = v;
 	
 	numNormals = c;
+	needsDataUpdate = YES;
 }
 
 - (void) setColors: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
@@ -573,6 +578,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	if (colors)
 		free(colors);
 	
+
 	if (doCopy)
 	{
 		colors = calloc(sizeof(vector_t), c);
@@ -582,6 +588,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		colors = v;
 	
 	numColors = c;
+	needsDataUpdate = YES;
 }
 
 - (void) setTexCoords: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
@@ -598,6 +605,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		texCoords = v;
 	
 	numTexCoords = c;
+	needsDataUpdate = YES;
 }
 
 - (void) addVertices: (vector_t*) v count: (size_t) c
@@ -620,6 +628,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	}
 
 	numVertices += c;
+	needsDataUpdate = YES;
 }
 
 - (void) addColors: (vector_t*) v count: (size_t) c
@@ -632,6 +641,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	memcpy(colors+numColors, v, (sizeof(vector_t)*c));
 	
 	numColors += c;
+	needsDataUpdate = YES;
 }
 
 - (void) addDrawArrayIndices: (uint32_t*) array count: (size_t) count withMode: (unsigned int) mode
@@ -694,6 +704,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	memcpy(normals+numNormals, v, (sizeof(vector_t)*c));
 	
 	numNormals += c;
+	needsDataUpdate = YES;
 }
 
 - (void) addTexCoords: (vector_t*) v count: (size_t) c
@@ -706,6 +717,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	memcpy(texCoords+numTexCoords, v, (sizeof(vector_t)*c));
 	
 	numTexCoords += c;
+	needsDataUpdate = YES;
 }
 
 - (void) addIndices: (uint32_t*) v count: (size_t) c offset: (size_t) offset
@@ -806,17 +818,17 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 - (void) setupArrays
 {
-	if (!vertexBuffer && USE_VBOS)
+	if ((needsDataUpdate || !vertexBuffer) && USE_VBOS)
 	{
-		if (numVertices)
+		if (numVertices && !vertexBuffer)
 			glGenBuffers(1, & vertexBuffer);
-		if (numNormals)
+		if (numNormals && !normalBuffer)
 			glGenBuffers(1, & normalBuffer);
-		if (numTexCoords)
+		if (numTexCoords && !texCoordBuffer)
 			glGenBuffers(1, & texCoordBuffer);
-		if (numColors)
+		if (numColors && !colorBuffer)
 			glGenBuffers(1, & colorBuffer);
-		if (numIndices)
+		if (numIndices && !indexBuffer)
 			glGenBuffers(1, & indexBuffer);
 		
 		float* fVertices = calloc(numVertices, 4*sizeof(float));
@@ -2312,10 +2324,10 @@ struct lrec { int lo, hi; double t; };
 	sourceHeight = (double)(ymax - ymin)/ydiv+1;
 	
 	NSLog(@"LMP angle h: %d, v: %d", xmax, ymax);
-	NSLog(@"LMP width: %d, height: %d", sourceWidth, sourceHeight);
+	NSLog(@"LMP width: %zd, height: %zd", sourceWidth, sourceHeight);
 	
 	size_t entries = sourceWidth*sourceHeight;
-	NSLog(@"LMP %d,%d", entries, [values count]-7);
+	NSLog(@"LMP %zd,%zd", entries, (size_t)[values count]-7);
 	if (!([values count]+7 > entries))
 	{
 		[self release];
@@ -2993,7 +3005,7 @@ static BOOL _gfx_isMipmappingSupported = NO;
 		}
 	}
 	
-	[children insertObject: [[TransformNode alloc] initWithMatrix: m] atIndex: 0]; 
+	[children insertObject: [[[TransformNode alloc] initWithMatrix: m] autorelease] atIndex: 0]; 
 }
 
 - (range3d_t) vertexBounds

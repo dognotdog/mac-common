@@ -37,6 +37,11 @@ static	float dot3(const float g[], const float x, const float y, const float z)
 	free(perm - 256);
 	[super dealloc];
 }
+- (void) finalize
+{
+	free(perm - 256);
+	[super finalize];
+}
 
 - (void) setSeed: (uint32_t) seed
 {

@@ -32,6 +32,12 @@
 	[super finalize];
 }
 
+- (void) dealloc
+{
+	free(floats);
+	[super dealloc];
+}
+
 - (const float*) floats
 {
 	return floats;

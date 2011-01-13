@@ -286,14 +286,16 @@
 
 - (void) setBoxColor:(NSColor *)color // set default text color
 {
-	boxColor = color;
+	[boxColor release];
+	boxColor = [color retain];
 	requiresUpdate = YES;
 }
 
 
 - (void) setBorderColor:(NSColor *)color // set default text color
 {
-	borderColor = color;
+	[borderColor release];
+	borderColor = [color retain];
 	requiresUpdate = YES;
 }
 
@@ -561,7 +563,8 @@
 
 - (void) setTextColor:(NSColor *)color // set default text color
 {
-	textColor = color;
+	[textColor release];
+	textColor = [color retain];
 	requiresUpdate = YES;
 }
 

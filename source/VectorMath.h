@@ -599,6 +599,15 @@ static inline vector_t v3MulScalar(vector_t a, vmfloat_t b)
 #endif
 }
 
+static inline vector_t v3MulElements(vector_t a, vector_t b)
+{
+	vector_t v = vZero();
+	v.farr[0] = a.farr[0]*b.farr[0];
+	v.farr[1] = a.farr[1]*b.farr[1];
+	v.farr[2] = a.farr[2]*b.farr[2];
+	return v;
+}
+
 static inline vector_t v3DivElements(vector_t a, vector_t b)
 {
 	vector_t v = vZero();
@@ -1023,6 +1032,45 @@ static inline vmfloat_t xPointPlaneDistance(const vector_t C, const vector_t P, 
 	vector_t X = v3Add(C, DN);
 	*xptr = X;
 	return d;
+}
+
+static inline v3i_t v3iCreate(int i, int j, int k)
+{
+	return (v3i_t){i,j,k};
+}
+
+static inline v3i_t v3iAdd(v3i_t a, v3i_t b)
+{
+	return (v3i_t){a.x+b.x, a.y+b.y, a.z+b.z};
+}
+
+static inline v3i_t v3iSub(v3i_t a, v3i_t b)
+{
+	return (v3i_t){a.x-b.x, a.y-b.y, a.z-b.z};
+}
+
+static inline int v3iEqual(v3i_t a, v3i_t b)
+{
+	return (a.x==b.x) && (a.y==b.y) && (a.z==b.z);
+}
+
+static inline v3i_t v3iMin(v3i_t a, v3i_t b)
+{
+	return (v3i_t){MIN(a.x,b.x), MIN(a.y,b.y), MIN(a.z,b.z)};
+}
+
+static inline v3i_t v3iMax(v3i_t a, v3i_t b)
+{
+	return (v3i_t){MAX(a.x,b.x), MAX(a.y,b.y), MAX(a.z,b.z)};
+}
+
+static inline int v3iSum(v3i_t a)
+{
+	return a.x+a.y+a.z;
+}
+static inline int v3iProduct(v3i_t a)
+{
+	return a.x*a.y*a.z;
 }
 
 

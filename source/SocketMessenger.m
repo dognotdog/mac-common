@@ -393,7 +393,7 @@ SEND_ERR:
 	NSInteger	port = [remoteService port];
 	NSString*	hostName = [remoteService hostName];
 	
-	NSLog(@"SocketMessenger attempting to connect to %@ : %d", hostName, port);
+	NSLog(@"SocketMessenger attempting to connect to %@ : %d", hostName, (int)port);
 
 	int sockfd = 0;
 
