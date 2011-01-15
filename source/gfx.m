@@ -546,8 +546,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	
 	if (doCopy)
 	{
-		vertices = calloc(sizeof(vector_t), c);
-		memcpy(vertices, v, (sizeof(vector_t)*c));
+		vertices = memcpy(malloc(sizeof(vector_t)*c), v, (sizeof(vector_t)*c));
 	}
 	else
 		vertices = v;
@@ -571,8 +570,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 	if (doCopy)
 	{
-		normals = calloc(sizeof(vector_t), c);
-		memcpy(normals, v, (sizeof(vector_t)*c));
+		normals = memcpy(malloc(sizeof(vector_t)*c), v, (sizeof(vector_t)*c));
 	}
 	else
 		normals = v;
@@ -589,8 +587,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 	if (doCopy)
 	{
-		colors = calloc(sizeof(vector_t), c);
-		memcpy(colors, v, (sizeof(vector_t)*c));
+		colors = memcpy(malloc(sizeof(vector_t)*c), v, (sizeof(vector_t)*c));
 	}
 	else
 		colors = v;
@@ -606,8 +603,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	
 	if (doCopy)
 	{
-		texCoords = calloc(sizeof(vector_t), c);
-		memcpy(texCoords, v, (sizeof(vector_t)*c));
+		texCoords = memcpy(malloc(sizeof(vector_t)*c), v, (sizeof(vector_t)*c));
 	}
 	else
 		texCoords = v;
