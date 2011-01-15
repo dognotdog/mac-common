@@ -489,6 +489,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		[GLResourceDisposal disposeOfResourcesWithTypes: normalBuffer, GL_VERTEX_ARRAY, NULL];
 	if (texCoordBuffer)
 		[GLResourceDisposal disposeOfResourcesWithTypes: texCoordBuffer, GL_VERTEX_ARRAY, NULL];
+	if (colorBuffer)
+		[GLResourceDisposal disposeOfResourcesWithTypes: colorBuffer, GL_VERTEX_ARRAY, NULL];
 	if (indexBuffer)
 		[GLResourceDisposal disposeOfResourcesWithTypes: indexBuffer, GL_VERTEX_ARRAY, NULL];
 
@@ -498,6 +500,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		free(texCoords);
 	if (normals)
 		free(normals);
+	if (colors)
+		free(colors);
 	if (indices)
 		free(indices);
 
@@ -512,17 +516,21 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		free(texCoords);
 	if (normals)
 		free(normals);
+	if (colors)
+		free(colors);
 	if (indices)
 		free(indices);
 	
 	if (vertexBuffer)
-		glDeleteBuffers(1, & vertexBuffer);
+		[GLResourceDisposal disposeOfResourcesWithTypes: vertexBuffer, GL_VERTEX_ARRAY, NULL];
 	if (normalBuffer)
-		glDeleteBuffers(1, & normalBuffer);
+		[GLResourceDisposal disposeOfResourcesWithTypes: normalBuffer, GL_VERTEX_ARRAY, NULL];
 	if (texCoordBuffer)
-		glDeleteBuffers(1, & texCoordBuffer);
+		[GLResourceDisposal disposeOfResourcesWithTypes: texCoordBuffer, GL_VERTEX_ARRAY, NULL];
+	if (colorBuffer)
+		[GLResourceDisposal disposeOfResourcesWithTypes: colorBuffer, GL_VERTEX_ARRAY, NULL];
 	if (indexBuffer)
-		glDeleteBuffers(1, & indexBuffer);
+		[GLResourceDisposal disposeOfResourcesWithTypes: indexBuffer, GL_VERTEX_ARRAY, NULL];
 		
 	[batches release];
 	[texture release];
@@ -1018,6 +1026,15 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	[self setupArrays];
 
 	glDrawArrays(GL_LINE_STRIP, 0, numVertices);
+
+	[self cleanupArrays];
+}
+
+- (void) drawLines
+{
+	[self setupArrays];
+
+	glDrawArrays(GL_LINES, 0, numVertices);
 
 	[self cleanupArrays];
 }
