@@ -29,6 +29,7 @@ void	_LogGLError(NSString* str);
 	vector_t*	texCoords;
 	vector_t*	colors;
 	size_t numVertices, numNormals, numTexCoords, numColors;
+	BOOL verticesUploaded, normalsUploaded, texCoordsUploaded, colorsUploaded, indicesUploaded;
 	
 	
 	uint32_t*	indices;
@@ -43,7 +44,7 @@ void	_LogGLError(NSString* str);
 	
 	GLuint	vertexBuffer, normalBuffer, texCoordBuffer, colorBuffer, indexBuffer;
 	
-	BOOL	needsDataUpdate;
+	BOOL	needsDataUpdate, deleteUploadedVertexData;
 }
 
 - (void) setVertices: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
@@ -86,23 +87,24 @@ void	_LogGLError(NSString* str);
 + (GLMesh*) sphereMeshPosHemi;
 + (GLMesh*) sphereMeshNegHemi;
 
-@property SEL drawSelector;
-@property(retain) TransformNode* transform;
-@property(retain) GLTexture* texture;
-@property matrix_t textureMatrix;
+@property(nonatomic) SEL drawSelector;
+@property(nonatomic, retain) TransformNode* transform;
+@property(nonatomic, retain) GLTexture* texture;
+@property(nonatomic) matrix_t textureMatrix;
 
-@property(readonly) vector_t* texCoords;
-@property(readonly) size_t numTexCoords;
-@property(readonly) vector_t* vertices;
-@property(readonly) size_t numVertices;
-@property(readonly) vector_t* normals;
-@property(readonly) size_t numNormals;
+@property(nonatomic, readonly) vector_t* texCoords;
+@property(nonatomic, readonly) size_t numTexCoords;
+@property(nonatomic, readonly) vector_t* vertices;
+@property(nonatomic, readonly) size_t numVertices;
+@property(nonatomic, readonly) vector_t* normals;
+@property(nonatomic, readonly) size_t numNormals;
 @property(readonly) uint32_t* indices;
-@property(readonly) size_t numIndices;
+@property(nonatomic, nonatomic, readonly) size_t numIndices;
 
 @property(readonly) range3d_t vertexBounds;
 
 //@property(nonatomic) BOOL needsDataUpdate;
+@property(nonatomic) BOOL deleteUploadedVertexData;
 
 @end
 

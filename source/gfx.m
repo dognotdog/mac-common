@@ -859,35 +859,77 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		
 		if (normalBuffer)
 		{
-		glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
-		glBufferData(GL_ARRAY_BUFFER, 3*sizeof(float)*(numNormals), fNormals, GL_STATIC_DRAW);
-		glNormalPointer(GL_FLOAT, 0, 0);
+			glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
+			glBufferData(GL_ARRAY_BUFFER, 3*sizeof(float)*(numNormals), fNormals, GL_STATIC_DRAW);
+			glNormalPointer(GL_FLOAT, 0, 0);
+			normalsUploaded = YES;
+			if (deleteUploadedVertexData)
+			{
+				free(normals);
+				normals = NULL;
+			}
 		}
+		else
+			normalsUploaded = NO;
 
 		if (texCoordBuffer)
 		{
-		glBindBuffer(GL_ARRAY_BUFFER, texCoordBuffer);
-		glBufferData(GL_ARRAY_BUFFER, 4*sizeof(float)*(numTexCoords), fTexCoords, GL_STATIC_DRAW);
-		glTexCoordPointer(4, GL_FLOAT, 0, 0);
+			glBindBuffer(GL_ARRAY_BUFFER, texCoordBuffer);
+			glBufferData(GL_ARRAY_BUFFER, 4*sizeof(float)*(numTexCoords), fTexCoords, GL_STATIC_DRAW);
+			glTexCoordPointer(4, GL_FLOAT, 0, 0);
+			texCoordsUploaded = NO;
+			if (deleteUploadedVertexData)
+			{
+				free(texCoords);
+				texCoords = NULL;
+			}
 		}
+		else
+			texCoordsUploaded = NO;
+		
 		if (colorBuffer)
 		{
 			glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
 			glBufferData(GL_ARRAY_BUFFER, 4*sizeof(float)*(numColors), fColors, GL_STATIC_DRAW);
 			glColorPointer(4, GL_FLOAT, 0, 0);
+			colorsUploaded = YES;
+			if (deleteUploadedVertexData)
+			{
+				free(colors);
+				colors = NULL;
+			}
 		}
+		else	
+			colorsUploaded = NO;
 
 		if (vertexBuffer)
 		{
-		glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-		glBufferData(GL_ARRAY_BUFFER, 4*sizeof(float)*(numVertices), fVertices, GL_STATIC_DRAW);
-		glVertexPointer(4, GL_FLOAT, 0, 0);
+			glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+			glBufferData(GL_ARRAY_BUFFER, 4*sizeof(float)*(numVertices), fVertices, GL_STATIC_DRAW);
+			glVertexPointer(4, GL_FLOAT, 0, 0);
+			verticesUploaded = YES;
+			if (deleteUploadedVertexData)
+			{
+				free(vertices);
+				vertices = NULL;
+			}
 		}
+		else
+			verticesUploaded = NO;
+			
 		if (indexBuffer)
 		{
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(*indices)*numIndices, indices, GL_STATIC_DRAW);
+			indicesUploaded = YES;
+			if (deleteUploadedVertexData)
+			{
+				free(indices);
+				indices = NULL;
+			}
 		}
+		else
+			indicesUploaded = NO;
 		
 		LogGLError(@"bind VBOs");
 		
@@ -1968,7 +2010,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 }
 
 
-@synthesize drawSelector, transform, texture, textureMatrix, numTexCoords, texCoords, numNormals, normals, numVertices, vertices, numIndices, indices, vertexBounds;
+@synthesize drawSelector, transform, texture, textureMatrix, numTexCoords, texCoords, numNormals, normals, numVertices, vertices, numIndices, indices, vertexBounds, deleteUploadedVertexData;
 
 @end
 
