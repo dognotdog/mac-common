@@ -32,11 +32,32 @@
 #pragma once
 
 #include <math.h>
+#include <float.h>
 
 #if defined(_WINDOWS) || defined(WIN32)
 #ifndef inline
 #define inline __inline
 #endif
+#endif
+
+#ifdef _MSC_VER
+#include <xmath.h>
+#include <limits.h>
+
+static inline int isinf(double num) { return !_finite(num) && !_isnan(num); }
+static inline int isnan(double num) { return !!_isnan(num); }
+static inline long lround(double num) { return (long)(num > 0 ? num + 0.5 : ceil(num - 0.5)); }
+static inline long lroundf(float num) { return (long)(num > 0 ? num + 0.5f : ceilf(num - 0.5f)); }
+static inline double round(double num) { return num > 0 ? floor(num + 0.5) : ceil(num - 0.5); }
+static inline float roundf(float num) { return num > 0 ? floorf(num + 0.5f) : ceilf(num - 0.5f); }
+static inline int signbit(double num) { return _copysign(1.0, num) < 0; }
+static inline double trunc(double num) { return num > 0 ? floor(num) : ceil(num); }
+
+static inline double nextafter(double x, double y) { return _nextafter(x, y); }
+static inline float nextafterf(float x, float y) { return x > y ? x - FLT_EPSILON : x + FLT_EPSILON; }
+
+static inline double copysign(double x, double y) { return _copysign(x, y); }
+static inline int isfinite(double x) { return _finite(x); }
 #endif
 
 
@@ -400,7 +421,6 @@ matrix_t mOrtho(vector_t min, vector_t max);
 matrix_t mOrthogonalize(matrix_t m);
 matrix_t mOrthonormalize(matrix_t m);
 
-
 static inline matrix_t mTranslationMatrix(vector_t v)
 {
 
@@ -747,7 +767,6 @@ static inline vector_t vReflect(vector_t a, vector_t b)
 }
 
 
-
 static inline range3d_t rEmptyRange(void)
 {
 	vector_t zvec = vZero();
@@ -844,7 +863,8 @@ static inline range3d_t mTransformRangeOrtho(matrix_t m, range3d_t r)
 	
 	mr = mTransform(m,mr);
 	//mr = mTransform(m,mTransform(mr, mInverse(m)));
-		
+
+	{
 	vector_t corners[7];
 	corners[0] = mr.varr[0];
 	corners[1] = mr.varr[1];
@@ -854,6 +874,7 @@ static inline range3d_t mTransformRangeOrtho(matrix_t m, range3d_t r)
 	corners[5] = v3Add(mr.varr[1], mr.varr[2]);
 	corners[6] = v3Add(corners[3], mr.varr[2]);
 
+	{
 	range3d_t res = rInfRange();
 	for (int i = 0; i < 7; ++i)
 	{
@@ -864,6 +885,8 @@ static inline range3d_t mTransformRangeOrtho(matrix_t m, range3d_t r)
 	res.minv = v3Add(res.minv, mr.varr[3]);
 	res.maxv = v3Add(res.maxv, mr.varr[3]);
 	return res;
+	}
+	}
 };
 
 static inline range3d_t mTransformRangeRobust(matrix_t m, range3d_t r)

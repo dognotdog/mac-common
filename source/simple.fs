@@ -1,16 +1,13 @@
-/*
- *  simple.fs
- *
- *  Created by döme on 04.08.2009.
- *
- */
+#version 150
 
 uniform sampler2D	tex0;
 uniform vec3		lightdir;
 
-varying vec3 surfaceNormal;
-varying vec4 vertexPos;
-varying vec4 primaryColor;
+in vec3 surfaceNormal;
+in vec4 vertexPos;
+in vec4 primaryColor;
+
+out vec4 fragColor;
 
 void main()
 {
@@ -23,5 +20,5 @@ void main()
 //	gl_FragColor = vec4(tex0color.rgb, tex0color.a)*color;
 //	gl_FragColor = vec4(1.0,1.0,1.0,1.0);
 	float diffuse = -dot(NN, lightdir)*(float(gl_FrontFacing)*2.0 - 1.0);
-	gl_FragColor = vec4(primaryColor.rgb*(0.9*diffuse + 0.1), primaryColor.a);
+	fragColor = vec4(primaryColor.rgb*(0.9*diffuse + 0.1), primaryColor.a);
 }

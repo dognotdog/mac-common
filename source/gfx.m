@@ -6,36 +6,61 @@
 //  Copyright 2008 Doemoetoer Gulyas. All rights reserved.
 //
 
-#import <OpenGL/OpenGL.h>
-#import <OpenGL/gl.h>
-#import <OpenGL/glu.h>
+#import <OpenGL/gl3.h>
 
 #import "gfx.h"
+#import "GfxStateStack.h"
+//#import "pafs_basics.h"
 
-#define	USE_VBOS 1
+
+#define NSZeroRange NSMakeRange(0, 0)
+
+
 
 void	_LogGLError(NSString* str)
 {
 	GLenum error = glGetError();
 	if (error != GL_NO_ERROR)
-		NSLog(@"%@: '%s'", str, gluErrorString(error));
+		NSLog(@"%@: '0x%X'", str, error);
+	//NSLog(@"%@: '%s'", str, gluErrorString(error));
 }
 
+void glUniformMatrix4(GLint uloc, matrix_t m)
+{
+	GLfloat farr[16];
+	for (int i = 0; i < 16; ++i)
+		farr[i] = m.varr->farr[i];
+	
+	glUniformMatrix4fv(uloc, 1, 0, farr);
+	
+};
 
+void glUniformVector4(GLint uloc, vector_t v)
+{
+	GLfloat farr[4];
+	for (int i = 0; i < 4; ++i)
+		farr[i] = v.farr[i];
+	
+	glUniform4fv(uloc, 4, farr);
+	
+};
+
+
+/*
 static int _extension_supported(const char *extension)
 {
     return gluCheckExtension(
         (const GLubyte *)extension,
         glGetString(GL_EXTENSIONS));
 }
-
+*/
 GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, size_t numFS)
 {
 /*
-    if (!_extension_supported("GL__shader_objects") ||
-        !_extension_supported("GL__vertex_shader") ||
-        !_extension_supported("GL__fragment_shader") ||
-        !_extension_supported("GL__shading_language_100"))
+    if (!_extension_supported("GL_ARB_shader_objects") ||
+        !_extension_supported("GL_ARB_vertex_shader") ||
+        !_extension_supported("GL_ARB_fragment_shader") ||
+        !_extension_supported("GL_ARB_shading_language_100"))
     {
         NSLog(@"ERROR: OpenGL Shading Language not supported");
         return 0;
@@ -80,17 +105,18 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
         if (!compiledOK)
         {
-            GLint infoLogLength;
+            GLint infoLogLength = 0;
             glGetShaderiv(
                 vertexShader,
                 GL_INFO_LOG_LENGTH,
                 &infoLogLength);
             
+			GLint outLength = 0;
             char *infoLog = calloc(infoLogLength, sizeof(char));
 			glGetShaderInfoLog(
 				vertexShader,
 				infoLogLength,
-				NULL,
+				&outLength,
 				infoLog);
 			
 
@@ -150,35 +176,43 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
             free(infoLog);
             
-            return 0;
+            return false;
         }
 
         glAttachShader(shaderProg, fragmentShader);
 
 	}
+    
+    glBindAttribLocation(shaderProg, GFX_ATTRIB_POS, "in_vertex");
+	glBindAttribLocation(shaderProg, GFX_ATTRIB_NORMAL, "in_normal");
+	glBindAttribLocation(shaderProg, GFX_ATTRIB_COLOR, "in_color");
+	glBindAttribLocation(shaderProg, GFX_ATTRIB_TEXCOORD0, "in_texcoord0");
+	glBindAttribLocation(shaderProg, GFX_ATTRIB_TEXCOORD1, "in_texcoord1");
+    glBindFragDataLocation(shaderProg, GFX_FRAGDATA_COLOR, "out_fragColor");
+
 
 	// link shader
     glLinkProgram(shaderProg);
     
     GLint linkedOK;
     glGetProgramiv(
-							  shaderProg,
-							  GL_LINK_STATUS,
-							  &linkedOK);
+	  shaderProg,
+	  GL_LINK_STATUS,
+	  &linkedOK);
     if (!linkedOK)
     {
-        GLint infoLogLength;
-        glGetProgramiv(
-								  shaderProg,
-								  GL_INFO_LOG_LENGTH,
-								  &infoLogLength);
+		GLint infoLogLength;
+		glGetProgramiv(
+			shaderProg,
+			GL_INFO_LOG_LENGTH,
+			&infoLogLength);
         
         char *infoLog = calloc(infoLogLength,sizeof(char));
         glGetProgramInfoLog(
-						shaderProg,
-						infoLogLength,
-						NULL,
-						infoLog);
+			shaderProg,
+			infoLogLength,
+			NULL,
+			infoLog);
         
         
 		NSLog(@"ERROR: Linking failed: %s\n", infoLog);
@@ -186,9 +220,11 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
         free(infoLog);
 		
     }
-	
+    
 
     glUseProgram(shaderProg);
+	
+	
 
     GLint hardwareAccelerated;
 
@@ -199,7 +235,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
     if (!hardwareAccelerated)
     {
 		// not accelerated on intel GMA graphics, as those have no vertex processors on the GPU
-        //NSLog(@"Warning: Vertex shader is NOT being hardware-accelerated\n");
+        NSLog(@"Warning: Vertex shader is NOT being hardware-accelerated\n");
     }
     CGLGetParameter(
         CGLGetCurrentContext(),
@@ -217,34 +253,26 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	return shaderProg;
 }
 
-@interface GLMesh_batch : NSObject
-{
-	size_t		begin, count;
-	unsigned	drawMode;
-}
-//+ (id) batchWithIndices: (NSArray*) array mode: (unsigned) theMode;
-
-+ (id) batchStarting: (size_t) begin count: (size_t) count mode: (unsigned) theMode;
-@property size_t begin;
-@property size_t count;
-@property unsigned drawMode;
-@end
-
 @implementation GLMesh_batch
 
 + (id) batchStarting: (size_t) begin count: (size_t) count mode: (unsigned) theMode
 {
-	GLMesh_batch* obj = [[[GLMesh_batch alloc] init] autorelease];
+	asin(count);
+	GLMesh_batch* obj = [[GLMesh_batch alloc] init];
 	[obj setBegin: begin];
 	[obj setCount: count];
 	[obj setDrawMode: theMode];
 	return obj;
 }
 
+- (void) setCount:(size_t)c
+{
+	assert(c);
+	count = c;
+}
 
 - (void) dealloc
 {
-	[super dealloc];
 }
 
 @synthesize begin, count, drawMode;
@@ -266,6 +294,10 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	
 	size_t vi = 0, fi = 0;
 	
+	vertexShaderSource = [vsa componentsJoinedByString: @""];
+	fragmentShaderSource = [fsa componentsJoinedByString: @""];
+	
+	
 	for (NSString* vs in vsa)
 	{
 		vtext[vi++] = [vs UTF8String];
@@ -276,18 +308,29 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		ftext[fi++] = [fs UTF8String];
 	//	printf("%s\n", [fs UTF8String]);
 	}
-	
+/*	
+	modelViewMatrix = mIdentity();
+	projectionMatrix = mIdentity();
+*/
+    LogGLError(@"GLSLShader init begin");
 
-	programHandle = CreateShader(vtext, vi, ftext, fi);
+	glName = CreateShader(vtext, vi, ftext, fi);
 	
 	free(vtext);
 	free(ftext);
 	
-	if (!programHandle)
+	if (!glName)
 	{
-		[self release];
 		return nil;
 	}
+/*
+	_modelViewMatrixLoc = glGetUniformLocation(glName, "modelViewMatrix");
+	_normalMatrixLoc = glGetUniformLocation(glName, "normalMatrix");
+	_projectionMatrixLoc = glGetUniformLocation(glName, "projectionMatrix");
+	_mvpMatrixLoc = glGetUniformLocation(glName, "mvpMatrix");
+*/	
+
+    LogGLError(@"GLSLShader init end");
 
 	return self;
 }
@@ -316,7 +359,6 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		if (!text)
 		{
 			NSLog(@"GLSLShader: File '%@' could not be loaded.", fpath);
-			[self release];
 			return nil;
 		}
 		
@@ -331,7 +373,6 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		if (!text)
 		{
 			NSLog(@"GLSLShader: File '%@' could not be loaded.", fpath);
-			[self release];
 			return nil;
 		}
 		
@@ -351,22 +392,54 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 - (void) finalize
 {
-	if (programHandle)
-		[GLResourceDisposal disposeOfResourcesWithTypes: (size_t)programHandle, GL_SHADER_OBJECT_ARB, NULL];
+	if (glName)
+		[GLResourceDisposal disposeOfResourcesWithTypes: (size_t)glName, GFX_RESOURCE_PROGRAM, NULL];
 	[super finalize];
 }
 - (void) dealloc
 {
-	if (programHandle)
-		[GLResourceDisposal disposeOfResourcesWithTypes: (size_t)programHandle, GL_SHADER_OBJECT_ARB, NULL];
-
-	[super dealloc];
+	if (glName)
+		[GLResourceDisposal disposeOfResourcesWithTypes: (size_t)glName, GFX_RESOURCE_PROGRAM, NULL];
 }
+
+/*
+- (void) concatModelViewMatrix: (matrix_t) m
+{
+	self.modelViewMatrix = mTransform(modelViewMatrix, m);
+}
+
+
+
+- (void) setModelViewMatrix: (matrix_t) m
+{
+	modelViewMatrix = m;
+	
+	if (-1 != _modelViewMatrixLoc)
+		glUniformMatrix4(_modelViewMatrixLoc, modelViewMatrix);
+	
+	if (-1 != _normalMatrixLoc)
+		glUniformMatrix4(_normalMatrixLoc, mTranspose(mInverse(modelViewMatrix)));
+
+	if (-1 != _mvpMatrixLoc)
+		glUniformMatrix4(_mvpMatrixLoc, mTransform(projectionMatrix, modelViewMatrix));
+}
+
+- (void) setProjectionMatrix: (matrix_t) m
+{
+	projectionMatrix = m;
+	
+	if (-1 != _projectionMatrixLoc)
+		glUniformMatrix4(_projectionMatrixLoc, projectionMatrix);
+
+	if (-1 != _mvpMatrixLoc)
+		glUniformMatrix4(_mvpMatrixLoc, mTransform(projectionMatrix, modelViewMatrix));
+}
+
 
 - (void) setIntegerUniform: (GLint) val named: (NSString*) name
 {
 	GLint uloc = 0;
-	uloc = glGetUniformLocation(programHandle, [name UTF8String]);
+	uloc = glGetUniformLocation(glName, [name UTF8String]);
 	glUniform1i(uloc, val);
 	LogGLError(@"setIntegerUniform:named:");
 }
@@ -374,25 +447,21 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void) setFloatUniform: (GLfloat) val named: (NSString*) name
 {
 	GLint uloc = 0;
-	uloc = glGetUniformLocation(programHandle, [name UTF8String]);
+	uloc = glGetUniformLocation(glName, [name UTF8String]);
 	glUniform1f(uloc, val);
 }
 
 - (void) setMatrixUniform: (matrix_t) val named: (NSString*) name
 {
 	GLint uloc = 0;
-	uloc = glGetUniformLocation(programHandle, [name UTF8String]);
-	
-	GLfloat farr[16];
-	for (int i = 0; i < 16; ++i)
-		farr[i] = val.varr->farr[i];
-	
-	glUniformMatrix4fv(uloc, 1, 0, farr);
+	uloc = glGetUniformLocation(glName, [name UTF8String]);
+		
+	glUniformMatrix4(uloc, val);
 }
 - (void) setVectorUniform: (vector_t) val named: (NSString*) name
 {
 	GLint uloc = 0;
-	uloc = glGetUniformLocation(programHandle, [name UTF8String]);
+	uloc = glGetUniformLocation(glName, [name UTF8String]);
 		
 	glUniform4f(uloc, val.farr[0], val.farr[1], val.farr[2], val.farr[3]);
 }
@@ -401,15 +470,15 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void) setVector3Uniform: (vector_t) val named: (NSString*) name
 {
 	GLint uloc = 0;
-	uloc = glGetUniformLocation(programHandle, [name UTF8String]);
+	uloc = glGetUniformLocation(glName, [name UTF8String]);
 		
 	glUniform3f(uloc, val.farr[0], val.farr[1], val.farr[2]);
 }
-
+*/
 
 - (void) useShader
 {
-	glUseProgram(programHandle);
+	glUseProgram(glName);
 }
 
 + (void) useFixedFunctionPipeline
@@ -417,6 +486,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	glUseProgram(0);
 }
 
+@synthesize /*modelViewMatrix, projectionMatrix,*/ glName, vertexShaderSource, fragmentShaderSource;
 
 @end
 
@@ -435,30 +505,34 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	return self;
 }
 
+//static GLfloat glIdentity[16] = {1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0};
 
-- (void) preDraw
+- (void) preDrawWithState: (GfxStateStack*) gfxState
 {
-	glColor(diffuseColor);
-	glMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuseColor);
+	gfxState.color = diffuseColor;
 	if (texture)
 	{
+        [gfxState setTextureMatrix: textureMatrix atIndex: 0];
 		[texture bindTextureAt: 0];
-		glMatrixMode(GL_TEXTURE);
-		glLoadMatrix(textureMatrix);
 	}
 }
-- (void) postDraw
+- (void) postDrawWithState: (GfxStateStack*) gfxState
 {
 	if (texture)
 	{
 		[GLTexture bindDefaultTextureAt: 0];
-		glMatrixMode(GL_TEXTURE);
-		glLoadIdentity();
+        [gfxState setTextureMatrix: mIdentity() atIndex: 0];
 	}
 }
 
-- (void) drawHierarchy
+- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
+}
+
+- (NSArray*) flattenToMeshes
+{
+	NSMutableArray* ary = [NSArray array];
+	return ary;
 }
 
 
@@ -477,22 +551,24 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 	textureMatrix = mIdentity();
 	batches = [[NSMutableArray alloc] init];
+    
+    usageHint = GL_STATIC_DRAW;
 
 	return self;
 }
 
 - (void) finalize
 {
+	if (vao)
+		[GLResourceDisposal disposeOfResourcesWithTypes: vao, GFX_RESOURCE_VAO, NULL];
 	if (vertexBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: vertexBuffer, GL_VERTEX_ARRAY, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: vertexBuffer, GFX_RESOURCE_VBO, NULL];
 	if (normalBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: normalBuffer, GL_VERTEX_ARRAY, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: normalBuffer, GFX_RESOURCE_VBO, NULL];
 	if (texCoordBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: texCoordBuffer, GL_VERTEX_ARRAY, NULL];
-	if (colorBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: colorBuffer, GL_VERTEX_ARRAY, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: texCoordBuffer, GFX_RESOURCE_VBO, NULL];
 	if (indexBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: indexBuffer, GL_VERTEX_ARRAY, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: indexBuffer, GFX_RESOURCE_VBO, NULL];
 
 	if (vertices)
 		free(vertices);
@@ -500,8 +576,6 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		free(texCoords);
 	if (normals)
 		free(normals);
-	if (colors)
-		free(colors);
 	if (indices)
 		free(indices);
 
@@ -516,37 +590,32 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		free(texCoords);
 	if (normals)
 		free(normals);
-	if (colors)
-		free(colors);
 	if (indices)
 		free(indices);
 	
+	if (vao)
+		[GLResourceDisposal disposeOfResourcesWithTypes: vao, GFX_RESOURCE_VAO, NULL];
 	if (vertexBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: vertexBuffer, GL_VERTEX_ARRAY, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: vertexBuffer, GFX_RESOURCE_VBO, NULL];
 	if (normalBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: normalBuffer, GL_VERTEX_ARRAY, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: normalBuffer, GFX_RESOURCE_VBO, NULL];
 	if (texCoordBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: texCoordBuffer, GL_VERTEX_ARRAY, NULL];
-	if (colorBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: colorBuffer, GL_VERTEX_ARRAY, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: texCoordBuffer, GFX_RESOURCE_VBO, NULL];
 	if (indexBuffer)
-		[GLResourceDisposal disposeOfResourcesWithTypes: indexBuffer, GL_VERTEX_ARRAY, NULL];
-		
-	[batches release];
-	[texture release];
-	[transform release];
-	[super dealloc];
+		[GLResourceDisposal disposeOfResourcesWithTypes: indexBuffer, GFX_RESOURCE_VBO, NULL];
+			
 }
 
 - (void) setVertices: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy
 {
 	if (vertices)
 		free(vertices);
-		
+	vertices = NULL;
 	
 	if (doCopy)
 	{
-		vertices = memcpy(malloc(sizeof(vector_t)*c), v, (sizeof(vector_t)*c));
+		vertices = calloc(sizeof(vector_t), c);
+		memcpy(vertices, v, (sizeof(vector_t)*c));
 	}
 	else
 		vertices = v;
@@ -559,65 +628,75 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	}
 	
 	numVertices = c;
-	needsDataUpdate = YES;
+    
+    dirtyVertices.location = 0;
+    dirtyVertices.length = numVertices;
 }
 
-- (void) setNormals: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
+- (void) setNormals: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy
 {
 	if (normals)
 		free(normals);
+	normals = NULL;
 	
-
 	if (doCopy)
 	{
-		normals = memcpy(malloc(sizeof(vector_t)*c), v, (sizeof(vector_t)*c));
+		normals = calloc(sizeof(vector_t), c);
+		memcpy(normals, v, (sizeof(vector_t)*c));
 	}
 	else
 		normals = v;
 	
 	numNormals = c;
-	needsDataUpdate = YES;
+    
+    dirtyNormals.location = 0;
+    dirtyNormals.length = numNormals;
 }
 
-- (void) setColors: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
+- (void) setColors: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy
 {
 	if (colors)
 		free(colors);
+	colors = NULL;
 	
-
 	if (doCopy)
 	{
-		colors = memcpy(malloc(sizeof(vector_t)*c), v, (sizeof(vector_t)*c));
+		colors = calloc(sizeof(vector_t), c);
+		memcpy(colors, v, (sizeof(vector_t)*c));
 	}
 	else
 		colors = v;
 	
 	numColors = c;
-	needsDataUpdate = YES;
+    
+    dirtyColors.location = 0;
+    dirtyColors.length = numColors;
 }
 
-- (void) setTexCoords: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
+
+- (void) setTexCoords: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy
 {
 	if (texCoords)
 		free(texCoords);
+	texCoords = NULL;
 	
 	if (doCopy)
 	{
-		texCoords = memcpy(malloc(sizeof(vector_t)*c), v, (sizeof(vector_t)*c));
+		texCoords = calloc(sizeof(vector_t), c);
+		memcpy(texCoords, v, (sizeof(vector_t)*c));
 	}
 	else
 		texCoords = v;
 	
 	numTexCoords = c;
-	needsDataUpdate = YES;
+    
+    dirtyTexCoords.location = 0;
+    dirtyTexCoords.length = numTexCoords;
 }
 
 - (void) addVertices: (vector_t*) v count: (size_t) c
 {
-	if (!vertices)
-		vertices = calloc(sizeof(vector_t), c);
-	else
-		vertices = realloc(vertices, sizeof(vector_t)*(numVertices+c));
+	vertices = realloc(vertices, sizeof(vector_t)*(numVertices+c));
 	
 	memcpy(vertices+numVertices, v, (sizeof(vector_t)*c));
 
@@ -631,51 +710,65 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		vertexBounds.maxv = vMax(vertexBounds.maxv, vertices[i]);
 	}
 
+    
+    dirtyVertices = NSUnionRange(dirtyVertices, NSMakeRange(numVertices, c));
 	numVertices += c;
-	needsDataUpdate = YES;
 }
 
-- (void) addColors: (vector_t*) v count: (size_t) c
+- (void) updateVertices: (vector_t*) v inRange: (NSRange) r
 {
-	if (!colors)
-		colors = calloc(sizeof(vector_t), c);
-	else
-		colors = realloc(colors, sizeof(vector_t)*(numColors+c));
-	
-	memcpy(colors+numColors, v, (sizeof(vector_t)*c));
-	
-	numColors += c;
-	needsDataUpdate = YES;
+    size_t newMax = NSMaxRange(r);
+    if (newMax > numVertices)
+    {
+        vertices = realloc(vertices, sizeof(*vertices)*newMax);
+        numVertices = newMax;
+    }
+    
+    memcpy(vertices + r.location, v, sizeof(*vertices)*r.length);
+    
+	for (size_t i = 0; i < r.length; ++i)
+	{
+		// skip nan vertices instead of bailing
+		//assert(!vIsNAN(vertices[i]));
+		if (vIsNAN(v[i]))
+			continue;
+		vertexBounds.minv = vMin(vertexBounds.minv, v[i]);
+		vertexBounds.maxv = vMax(vertexBounds.maxv, v[i]);
+	}
+    
+    dirtyVertices = NSUnionRange(dirtyVertices, r);
+
 }
 
 - (void) addDrawArrayIndices: (uint32_t*) array count: (size_t) count withMode: (unsigned int) mode
 {
+	assert(count);
 	size_t offset = numIndices;
-	if (!indices)
-		indices = calloc(1, sizeof(*indices));
 	indices = realloc(indices, sizeof(*indices)*(numIndices+count));
 	
 	for (size_t i = 0; i < count; ++i)
 		indices[numIndices+i] = array[i];
 		
+    dirtyIndices = NSUnionRange(dirtyIndices, NSMakeRange(numIndices, count));
 	numIndices += count;
+	
 
 	[batches addObject: [GLMesh_batch batchStarting: offset count: count mode: mode]];
 }
 
 
-- (void) addDrawArrayIndices: (NSArray*) array withMode: (unsigned int) mode;
+- (void) addDrawArrayIndices: (NSArray*) array withMode: (unsigned int) mode
 {
 	size_t count = [array count];
+	assert(count);
 	size_t offset = numIndices;
-	if (!indices)
-		indices = calloc(1, sizeof(uint32_t));
 	indices = realloc(indices, sizeof(uint32_t)*(numIndices+count));
 	
 	size_t i = numIndices;
 	for (id val in array)
 		indices[i++] = [val unsignedIntValue];
 		
+    dirtyIndices = NSUnionRange(dirtyIndices, NSMakeRange(numIndices, count));
 	numIndices += count;
 
 	[batches addObject: [GLMesh_batch batchStarting: offset count: count mode: mode]];
@@ -684,52 +777,53 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void) addDrawArrayIndices: (NSArray*) array withOffset: (size_t) valueOffset withMode: (unsigned int) mode
 {
 	size_t count = [array count];
+	assert(count);
 	size_t offset = numIndices;
-	if (!indices)
-		indices = calloc(1, sizeof(uint32_t));
 	indices = realloc(indices, sizeof(uint32_t)*(numIndices+count));
 	
 	size_t i = numIndices;
 	for (id val in array)
 		indices[i++] = [val unsignedIntValue] + valueOffset;
 		
+    dirtyIndices = NSUnionRange(dirtyIndices, NSMakeRange(numIndices, count));
 	numIndices += count;
 
 	[batches addObject: [GLMesh_batch batchStarting: offset count: count mode: mode]];
 }
 
+- (void) addColors: (vector_t*) v count: (size_t) c
+{
+	colors = realloc(colors, sizeof(vector_t)*(numColors+c));
+	
+	memcpy(colors+numColors, v, (sizeof(vector_t)*c));
+	
+    dirtyColors = NSUnionRange(dirtyColors, NSMakeRange(numColors, c));
+	numColors += c;
+}
+
 - (void) addNormals: (vector_t*) v count: (size_t) c
 {
-	if (!normals)
-		normals = calloc(sizeof(vector_t), c);
-	else
-		normals = realloc(normals, sizeof(vector_t)*(numNormals+c));
+	normals = realloc(normals, sizeof(vector_t)*(numNormals+c));
 	
 	memcpy(normals+numNormals, v, (sizeof(vector_t)*c));
 	
+    dirtyNormals = NSUnionRange(dirtyNormals, NSMakeRange(numNormals, c));
 	numNormals += c;
-	needsDataUpdate = YES;
 }
 
 - (void) addTexCoords: (vector_t*) v count: (size_t) c
 {
-	if (!texCoords)
-		texCoords = calloc(sizeof(vector_t), c);
-	else
-		texCoords = realloc(texCoords, sizeof(vector_t)*(numTexCoords+c));
+	texCoords = realloc(texCoords, sizeof(vector_t)*(numTexCoords+c));
 	
 	memcpy(texCoords+numTexCoords, v, (sizeof(vector_t)*c));
 	
+    dirtyTexCoords = NSUnionRange(dirtyTexCoords, NSMakeRange(numTexCoords, c));
 	numTexCoords += c;
-	needsDataUpdate = YES;
 }
 
 - (void) addIndices: (uint32_t*) v count: (size_t) c offset: (size_t) offset
 {
-	if (!indices)
-		indices = calloc(sizeof(uint32_t), c);
-	else
-		indices = realloc(indices, sizeof(uint32_t)*(numIndices+c));
+	indices = realloc(indices, sizeof(uint32_t)*(numIndices+c));
 	
 	if (!offset)
 		memcpy(indices+numIndices, v, (sizeof(uint32_t)*c));
@@ -738,6 +832,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 			indices[numIndices+i] = v[i]+offset;
 	
 	
+    dirtyIndices = NSUnionRange(dirtyIndices, NSMakeRange(numIndices, c));
 	numIndices += c;
 }
 
@@ -795,6 +890,14 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	return batches;
 }
 
+- (void) addBatch: (GLMesh_batch*) batch
+{
+	if (!batches)
+		batches = [NSMutableArray array];
+	
+	[batches addObject: batch];
+}
+
 - (void) appendMesh: (GLMesh*) mesh
 {
 	assert([mesh numVertices] == [mesh numNormals]);
@@ -819,236 +922,203 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	}
 }
 
+- (void) submitDirtyBuffers
+{
+    if (normalBuffer && dirtyNormals.length)
+    {
+        size_t nsize = sizeof(float)*3;
+        float* fNormals = calloc(dirtyNormals.length, nsize);
+        
+        for (size_t i = 0; i < dirtyNormals.length; ++i)
+            for (size_t ii = 0; ii < 3; ++ii)
+                fNormals[3*(dirtyNormals.location+i)+ii] = normals[dirtyNormals.location+i].farr[ii];
+        
+        glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
+       
+        if (glNormalBufSize < NSMaxRange(dirtyNormals))
+        {
+            glBufferData(GL_ARRAY_BUFFER, nsize*numNormals, NULL, usageHint);
+            glNormalBufSize = numNormals;
+        }
+        
+        glBufferSubData(GL_ARRAY_BUFFER, nsize*dirtyNormals.location, nsize*dirtyNormals.length, fNormals + nsize*dirtyNormals.location);
+        
+		LogGLError(@"normals");
+
+        dirtyNormals = NSZeroRange;
+
+        free(fNormals);
+    }
+    
+    if (colorBuffer && dirtyColors.length)
+    {
+        size_t csize = sizeof(float)*4;
+        float* fColors = calloc(dirtyColors.length, csize);
+
+        for (size_t i = 0; i < dirtyColors.length; ++i)
+            for (size_t ii = 0; ii < 4; ++ii)
+                fColors[4*(dirtyColors.location+i)+ii] = colors[dirtyColors.location+i].farr[ii];
+        
+       
+        glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+        
+        if (glColorBufSize < NSMaxRange(dirtyColors))
+        {
+            glBufferData(GL_ARRAY_BUFFER, csize*numColors, NULL, usageHint);
+            glColorBufSize = numColors;
+        }
+        
+        glBufferSubData(GL_ARRAY_BUFFER, csize*dirtyColors.location, csize*dirtyColors.length, fColors + csize*dirtyColors.location);
+
+ 		LogGLError(@"colors");
+		dirtyColors = NSZeroRange;
+
+        free(fColors);
+    }
+    
+    if (texCoordBuffer && dirtyTexCoords.length)
+    {
+        size_t tsize = sizeof(float)*4;
+        float* fTexCoords = calloc(dirtyTexCoords.length, tsize);
+        
+        for (size_t i = 0; i < dirtyTexCoords.length; ++i)
+            for (size_t ii = 0; ii < 4; ++ii)
+                fTexCoords[4*(dirtyTexCoords.location+i)+ii] = texCoords[dirtyTexCoords.location+i].farr[ii];
+        
+        glBindBuffer(GL_ARRAY_BUFFER, texCoordBuffer);
+        
+        if (glTexCoordBufSize < NSMaxRange(dirtyTexCoords))
+        {
+            glBufferData(GL_ARRAY_BUFFER, tsize*numTexCoords, NULL, usageHint);
+            glTexCoordBufSize = numTexCoords;
+        }
+        
+        glBufferSubData(GL_ARRAY_BUFFER, tsize*dirtyTexCoords.location, tsize*dirtyTexCoords.length, fTexCoords + tsize*dirtyTexCoords.location);
+
+		LogGLError(@"texcoords");
+		
+        dirtyTexCoords = NSZeroRange;
+
+        free(fTexCoords);
+    }
+    
+    if (vertexBuffer && dirtyVertices.length)
+    {
+        size_t vsize = sizeof(float)*4;
+        float* fVertices = calloc(dirtyVertices.length, vsize);
+
+        for (size_t i = 0; i < dirtyVertices.length; ++i)
+            for (size_t ii = 0; ii < 4; ++ii)
+                fVertices[4*(dirtyVertices.location + i) + ii] = vertices[dirtyVertices.location+i].farr[ii];
+        
+        glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
+        
+        if (glVertexBufSize < NSMaxRange(dirtyVertices))
+        {
+            glBufferData(GL_ARRAY_BUFFER, vsize*numVertices, NULL, usageHint);
+            glVertexBufSize = numVertices;
+        }
+        
+        glBufferSubData(GL_ARRAY_BUFFER, vsize*dirtyVertices.location, vsize*dirtyVertices.length, fVertices + vsize*dirtyTexCoords.location);
+		
+		LogGLError(@"vertices");
+
+        dirtyVertices = NSZeroRange;
+
+        free(fVertices);
+    }
+    
+    if (indexBuffer && dirtyIndices.length)
+    {
+        if (glIndexBufSize < NSMaxRange(dirtyIndices))
+        {
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(*indices)*numIndices, NULL, usageHint);
+            glIndexBufSize = numIndices;
+        }
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, sizeof(*indices)*dirtyIndices.location, sizeof(*indices)*dirtyIndices.length, indices);
+
+		LogGLError(@"indices");
+		
+        dirtyIndices = NSZeroRange;
+    }
+
+
+}
 
 - (void) setupArrays
 {
-	if ((needsDataUpdate || !vertexBuffer) && USE_VBOS)
+    LogGLError(@"begin");
+	if (!vao)
 	{
-		if (numVertices && !vertexBuffer)
+		glGenVertexArrays(1, &vao);
+		
+		if (numVertices)
 			glGenBuffers(1, & vertexBuffer);
-		if (numNormals && !normalBuffer)
+		if (numNormals)
 			glGenBuffers(1, & normalBuffer);
-		if (numTexCoords && !texCoordBuffer)
+		if (numTexCoords)
 			glGenBuffers(1, & texCoordBuffer);
-		if (numColors && !colorBuffer)
+		if (numColors)
 			glGenBuffers(1, & colorBuffer);
-		if (numIndices && !indexBuffer)
+		if (numIndices)
 			glGenBuffers(1, & indexBuffer);
 		
-		float* fVertices = calloc(numVertices, 4*sizeof(float));
-		float* fColors = calloc(numColors, 4*sizeof(float));
-		float* fNormals = calloc(numNormals, 3*sizeof(float));
-		float* fTexCoords = calloc(numTexCoords, 4*sizeof(float));
 		
-		for (size_t i = 0; i < numVertices; ++i)
-			for (size_t ii = 0; ii < 4; ++ii)
-				fVertices[4*i+ii] = vertices[i].farr[ii];
+		LogGLError(@"gen VBOs");
 
-		for (size_t i = 0; i < numColors; ++i)
-			for (size_t ii = 0; ii < 4; ++ii)
-				fColors[4*i+ii] = colors[i].farr[ii];
-
-
-		for (size_t i = 0; i < numTexCoords; ++i)
-			for (size_t ii = 0; ii < 4; ++ii)
-				fTexCoords[4*i+ii] = texCoords[i].farr[ii];
-
-		for (size_t i = 0; i < numNormals; ++i)
-			for (size_t ii = 0; ii < 3; ++ii)
-				fNormals[3*i+ii] = normals[i].farr[ii];
+		glBindVertexArray(vao);
 		
 		if (normalBuffer)
 		{
 			glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
-			glBufferData(GL_ARRAY_BUFFER, 3*sizeof(float)*(numNormals), fNormals, GL_STATIC_DRAW);
-			glNormalPointer(GL_FLOAT, 0, 0);
-			normalsUploaded = YES;
-			if (deleteUploadedVertexData)
-			{
-				free(normals);
-				normals = NULL;
-			}
+			//glNormalPointer(GL_FLOAT, 0, 0);
+			glVertexAttribPointer(GFX_ATTRIB_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+			glEnableVertexAttribArray(GFX_ATTRIB_NORMAL);
 		}
-		else
-			normalsUploaded = NO;
 
 		if (texCoordBuffer)
 		{
 			glBindBuffer(GL_ARRAY_BUFFER, texCoordBuffer);
-			glBufferData(GL_ARRAY_BUFFER, 4*sizeof(float)*(numTexCoords), fTexCoords, GL_STATIC_DRAW);
-			glTexCoordPointer(4, GL_FLOAT, 0, 0);
-			texCoordsUploaded = NO;
-			if (deleteUploadedVertexData)
-			{
-				free(texCoords);
-				texCoords = NULL;
-			}
+			glVertexAttribPointer(GFX_ATTRIB_TEXCOORD0, 4, GL_FLOAT, GL_FALSE, 0, NULL);
+			glEnableVertexAttribArray(GFX_ATTRIB_TEXCOORD0);
 		}
-		else
-			texCoordsUploaded = NO;
-		
 		if (colorBuffer)
 		{
 			glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-			glBufferData(GL_ARRAY_BUFFER, 4*sizeof(float)*(numColors), fColors, GL_STATIC_DRAW);
-			glColorPointer(4, GL_FLOAT, 0, 0);
-			colorsUploaded = YES;
-			if (deleteUploadedVertexData)
-			{
-				free(colors);
-				colors = NULL;
-			}
+			glVertexAttribPointer(GFX_ATTRIB_COLOR, 4, GL_FLOAT, GL_FALSE, 0, NULL);
+			glEnableVertexAttribArray(GFX_ATTRIB_COLOR);
 		}
-		else	
-			colorsUploaded = NO;
 
 		if (vertexBuffer)
 		{
 			glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-			glBufferData(GL_ARRAY_BUFFER, 4*sizeof(float)*(numVertices), fVertices, GL_STATIC_DRAW);
-			glVertexPointer(4, GL_FLOAT, 0, 0);
-			verticesUploaded = YES;
-			if (deleteUploadedVertexData)
-			{
-				free(vertices);
-				vertices = NULL;
-			}
+			glVertexAttribPointer(GFX_ATTRIB_POS, 4, GL_FLOAT, GL_FALSE, 0, NULL);
+			glEnableVertexAttribArray(GFX_ATTRIB_POS);
 		}
-		else
-			verticesUploaded = NO;
-			
 		if (indexBuffer)
 		{
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(*indices)*numIndices, indices, GL_STATIC_DRAW);
-			indicesUploaded = YES;
-			if (deleteUploadedVertexData)
-			{
-				free(indices);
-				indices = NULL;
-			}
 		}
-		else
-			indicesUploaded = NO;
-		
+        		
 		LogGLError(@"bind VBOs");
 		
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		
-		free(fVertices);
-		free(fColors);
-		free(fNormals);
-		free(fTexCoords);
 	}
+    
+    
 
-	if (USE_VBOS)
-	{
-		if (indexBuffer)
-		{
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-		}
-
-		if (texCoordBuffer)
-		{
-			glBindBuffer(GL_ARRAY_BUFFER, texCoordBuffer);
-			glTexCoordPointer(4, GL_FLOAT, 0, 0);
-		}
-		if (normalBuffer)
-		{
-			glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
-			glNormalPointer(GL_FLOAT, 0, 0);
-		}
-		if (colorBuffer)
-		{
-			glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-			glColorPointer(4, GL_FLOAT, 0, 0);
-		}
-		if (vertexBuffer)
-		{
-			glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-			glVertexPointer(4, GL_FLOAT, 0, 0);
-		}
-		
-		if (vertexBuffer)
-			glEnableClientState(GL_VERTEX_ARRAY);
-		if (colorBuffer)
-			glEnableClientState(GL_COLOR_ARRAY);
-		if (normalBuffer)
-			glEnableClientState(GL_NORMAL_ARRAY);
-		if (texCoordBuffer)
-			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	}
-	else if (!USE_VBOS)
-	{
-		if (vertices)
-			glEnableClientState(GL_VERTEX_ARRAY);
-		if (normals)
-			glEnableClientState(GL_NORMAL_ARRAY);
-		if (colors)
-			glEnableClientState(GL_COLOR_ARRAY);
-		if (texCoords)
-			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-
-		if (normals)
-			glNormalPointer(GL_DOUBLE, sizeof(vector_t), normals);
-		if (vertices)
-			glVertexPointer(4, GL_DOUBLE, sizeof(vector_t), vertices);
-		if (colors)
-			glColorPointer(4, GL_DOUBLE, sizeof(vector_t), colors);
-		if (texCoords)
-			glTexCoordPointer(4, GL_DOUBLE, sizeof(vector_t), texCoords);
-	}
+	glBindVertexArray(vao);
+    [self submitDirtyBuffers];
+	LogGLError(@"end");
 }
 
 - (void) cleanupArrays
 {
-	if (!USE_VBOS)
-	{
-		if (vertices)
-			glDisableClientState(GL_VERTEX_ARRAY);
-		if (normals)
-			glDisableClientState(GL_NORMAL_ARRAY);
-		if (colors)
-			glDisableClientState(GL_COLOR_ARRAY);
-		if (texCoords)
-		{
-			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-//			glClientActiveTexture(GL_TEXTURE0);
-		}
-	}
-	else if (USE_VBOS)
-	{
-		if (vertexBuffer)
-			glDisableClientState(GL_VERTEX_ARRAY);
-		if (normalBuffer)
-			glDisableClientState(GL_NORMAL_ARRAY);
-		if (colorBuffer)
-			glDisableClientState(GL_COLOR_ARRAY);
-		if (texCoordBuffer)
-			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);		
-	}
+	LogGLError(@"begin");
+	glBindVertexArray(0);
+	LogGLError(@"end");
 }
 
-- (void) drawQuadStrip
-{
-	[self setupArrays];
-
-	glDrawArrays(GL_QUAD_STRIP, 0, numVertices);
-
-	[self cleanupArrays];
-}
-- (void) drawQuads
-{
-	[self setupArrays];
-
-	glDrawArrays(GL_QUADS, 0, numVertices);
-
-	[self cleanupArrays];
-}
 
 - (void) drawPoints
 {
@@ -1068,15 +1138,6 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	[self cleanupArrays];
 }
 
-- (void) drawLines
-{
-	[self setupArrays];
-
-	glDrawArrays(GL_LINES, 0, numVertices);
-
-	[self cleanupArrays];
-}
-
 - (void) drawLineLoop
 {
 	[self setupArrays];
@@ -1086,16 +1147,26 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	[self cleanupArrays];
 }
 
+- (void) drawLines
+{
+	[self setupArrays];
+    
+	glDrawArrays(GL_LINES, 0, numVertices);
+    
+	[self cleanupArrays];
+}
+
+
 - (void) drawBatches
 {
 	[self setupArrays];
 	
-	if (!USE_VBOS)
-		for (GLMesh_batch* batch in batches)
-			glDrawElements([batch drawMode], [batch count], GL_UNSIGNED_INT, indices + [batch begin]);
-	else if (USE_VBOS)
-		for (GLMesh_batch* batch in batches)
-			glDrawElements([batch drawMode], [batch count], GL_UNSIGNED_INT, NULL+sizeof(*indices)*[batch begin]);
+	LogGLError(@"???");
+    for (GLMesh_batch* batch in batches)
+	{
+        glDrawElements([batch drawMode], [batch count], GL_UNSIGNED_INT, NULL+sizeof(*indices)*[batch begin]);
+		LogGLError(@"batch");
+	}
 
 	[self cleanupArrays];
 }
@@ -1103,22 +1174,65 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 - (void) justDraw
 {
-
-	[self performSelector: drawSelector];
+    if (drawSelector)
+        [self performSelector: drawSelector];
+    else
+        [self drawBatches];
 }
 
-- (void) preDraw
+- (void) preDrawWithState: (GfxStateStack*) state
 {
 }
-- (void) postDraw
+- (void) postDrawWithState: (GfxStateStack*) state
 {
 }
 
-- (void) drawHierarchy
+- (void) drawHierarchyWithState: (GfxStateStack*) state
 {
 	[self justDraw];
 }
 
+
++ (GLMesh*) quadMesh
+{
+	static GLMesh* mesh = nil;
+	if (!mesh)
+	{
+		
+		
+		vector_t v[4] = {
+			vCreatePos( 1.0, 1.0,0.0),
+			vCreatePos(-1.0, 1.0,0.0),
+			vCreatePos(-1.0,-1.0,0.0),
+			vCreatePos( 1.0,-1.0,0.0)
+		};
+		vector_t tc[4] = {
+			vCreatePos( 1.0, 0.0,0.0),
+			vCreatePos( 0.0, 0.0,0.0),
+			vCreatePos( 0.0, 1.0,0.0),
+			vCreatePos( 1.0, 1.0,0.0)
+		};
+		vector_t n[4] = {
+			vCreateDir(0.0,0.0,1.0),
+			vCreateDir(0.0,0.0,1.0),
+			vCreateDir(0.0,0.0,1.0),
+			vCreateDir(0.0,0.0,1.0)
+		};
+		
+		uint32_t indices[6] = {0,1,2, 3,0,2};
+
+
+	
+		mesh = [[GLMesh alloc] init];
+		[mesh setDrawSelector: @selector(drawBatches)];
+		[mesh addVertices: v count: 4];
+		[mesh addNormals: n count: 4];
+		[mesh addTexCoords: tc count: 4];
+		[mesh addDrawArrayIndices: indices count: 6 withMode: GL_TRIANGLES];
+		
+	}
+	return mesh;
+}
 
 + (GLMesh*) cubeMesh
 {
@@ -1128,8 +1242,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		
 		vector_t* vertices = calloc(sizeof(vector_t), 24);
 		vector_t* normals = calloc(sizeof(vector_t), 24);
-		uint32_t* indices = calloc(sizeof(*indices), 24);
-				
+		uint32_t* indices = calloc(sizeof(*indices), 36);
+		
 		for (int i = 0; i < 3; ++i)
 		{
 			vector_t v[4] = {vCreatePos(1.0,1.0,1.0),vCreatePos(-1.0,1.0,1.0),vCreatePos(-1.0,-1.0,1.0),vCreatePos(1.0,-1.0,1.0)};
@@ -1149,8 +1263,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 				n.farr[0] = n.farr[1];
 				n.farr[1] = n.farr[2];
 				n.farr[2] = tmp;
-		}
-				
+			}
+			
 			for (int j = 0; j < 4; ++j)
 			{
 				normals[8*i+j] = n;
@@ -1159,16 +1273,21 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 				vertices[8*i+4+j] = vNegate(v[j]);
 			}
 		}
-		for (int i = 0; i < 24; ++i)
+		for (int i = 0; i < 6; ++i)
 		{
-			indices[i] = i;
+			indices[6*i+0] = 6*i+0;
+			indices[6*i+1] = 6*i+1;
+			indices[6*i+2] = 6*i+2;
+			indices[6*i+3] = 6*i+3;
+			indices[6*i+4] = 6*i+2;
+			indices[6*i+5] = 6*i+1;
 		}
 		
 		mesh = [[GLMesh alloc] init];
 		[mesh setDrawSelector: @selector(drawBatches)];
 		[mesh addVertices: vertices count: 24];
 		[mesh addNormals: normals count: 24];
-		[mesh addDrawArrayIndices: indices count: 24 withMode: GL_QUADS];
+		[mesh addDrawArrayIndices: indices count: 36 withMode: GL_TRIANGLES];
 		
 		free(vertices);
 		free(normals);
@@ -1176,6 +1295,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	}
 	return mesh;
 }
+
 
 + (GLMesh*) cubeLineMesh
 {
@@ -1505,8 +1625,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		
 		int numSlices = londivs;
 		int numVerticesPerSlice = latdivs+1;
-		int numQuadsPerSlice = latdivs;
-		int numPrimitivesPerSlice = numQuadsPerSlice*4;
+		int numTrisPerSlice = 2*latdivs;
+		int numPrimitivesPerSlice = numTrisPerSlice*4;
 		
 		vector_t* vertices = calloc(sizeof(vector_t), (numSlices+1)*numVerticesPerSlice);
 		uint32_t* indices = calloc(sizeof(*indices), numSlices*numPrimitivesPerSlice);
@@ -1527,23 +1647,25 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		}
 		for (int i = 0; i < numSlices; ++i)
 		{
-			for (int j = 0; j < numQuadsPerSlice; ++j)
+			for (int j = 0; j < numTrisPerSlice/2; ++j)
 			{
 				int i0 = i*numVerticesPerSlice     + j;
 				int i1 = (i+1)*numVerticesPerSlice + j;
 				int i2 = i*numVerticesPerSlice     + j+1;
 				int i3 = (i+1)*numVerticesPerSlice + j+1;
-				indices[numPrimitivesPerSlice*i + 4*j    ] = i0;
-				indices[numPrimitivesPerSlice*i + 4*j + 1] = i1;
-				indices[numPrimitivesPerSlice*i + 4*j + 2] = i3;
-				indices[numPrimitivesPerSlice*i + 4*j + 3] = i2;
+				indices[numPrimitivesPerSlice*i + 6*j    ] = i0;
+				indices[numPrimitivesPerSlice*i + 6*j + 1] = i1;
+				indices[numPrimitivesPerSlice*i + 6*j + 2] = i2;
+				indices[numPrimitivesPerSlice*i + 6*j + 3] = i3;
+				indices[numPrimitivesPerSlice*i + 6*j + 4] = i2;
+				indices[numPrimitivesPerSlice*i + 6*j + 5] = i1;
 			}
 		}
 		mesh = [[GLMesh alloc] init];
 		[mesh setDrawSelector: @selector(drawBatches)];
 		[mesh addVertices: vertices count: (numSlices+1)*numVerticesPerSlice];
 		[mesh addNormals: vertices count: (numSlices+1)*numVerticesPerSlice];
-		[mesh addDrawArrayIndices: indices count: numSlices*numPrimitivesPerSlice withMode: GL_QUADS];
+		[mesh addDrawArrayIndices: indices count: numSlices*numPrimitivesPerSlice withMode: GL_TRIANGLES];
 
 		free(vertices);
 		free(indices);
@@ -1561,8 +1683,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 		
 		int numSlices = londivs;
 		int numVerticesPerSlice = latdivs+1;
-		int numQuadsPerSlice = latdivs;
-		int numPrimitivesPerSlice = numQuadsPerSlice*4;
+		int numTrisPerSlice = 2*latdivs;
+		int numPrimitivesPerSlice = numTrisPerSlice*3;
 
 		vector_t* vertices = calloc(sizeof(vector_t), (numSlices+1)*numVerticesPerSlice);
 		uint32_t* indices = calloc(sizeof(*indices), numSlices*numPrimitivesPerSlice);
@@ -1584,23 +1706,25 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 		for (int i = 0; i < numSlices; ++i)
 		{
-			for (int j = 0; j < numQuadsPerSlice; ++j)
+			for (int j = 0; j < numTrisPerSlice/2; ++j)
 			{
 				int i0 = i*numVerticesPerSlice     + j;
 				int i1 = (i+1)*numVerticesPerSlice + j;
 				int i2 = i*numVerticesPerSlice     + j+1;
 				int i3 = (i+1)*numVerticesPerSlice + j+1;
-				indices[numPrimitivesPerSlice*i + 4*j    ] = i0;
-				indices[numPrimitivesPerSlice*i + 4*j + 1] = i1;
-				indices[numPrimitivesPerSlice*i + 4*j + 2] = i3;
-				indices[numPrimitivesPerSlice*i + 4*j + 3] = i2;
+				indices[numPrimitivesPerSlice*i + 6*j    ] = i0;
+				indices[numPrimitivesPerSlice*i + 6*j + 1] = i1;
+				indices[numPrimitivesPerSlice*i + 6*j + 2] = i2;
+				indices[numPrimitivesPerSlice*i + 6*j + 3] = i3;
+				indices[numPrimitivesPerSlice*i + 6*j + 4] = i2;
+				indices[numPrimitivesPerSlice*i + 6*j + 5] = i1;
 			}
 		}
 		mesh = [[GLMesh alloc] init];
 		[mesh setDrawSelector: @selector(drawBatches)];
 		[mesh addVertices: vertices count: (numSlices+1)*numVerticesPerSlice];
 		[mesh addNormals: vertices count: (numSlices+1)*numVerticesPerSlice];
-		[mesh addDrawArrayIndices: indices count: numSlices*numPrimitivesPerSlice withMode: GL_QUADS];
+		[mesh addDrawArrayIndices: indices count: numSlices*numPrimitivesPerSlice withMode: GL_TRIANGLES];
 
 		free(vertices);
 		free(indices);
@@ -1662,6 +1786,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	{
 		normals[i] = nsums[map[i]];
 	}
+    
+    dirtyVertices = NSMakeRange(0, numVertices);
 
 	free(nsums);
 	free(map);
@@ -1739,7 +1865,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 								
 				break;
 			}
-			case GL_QUADS:
+			case 0x0007: //GL_QUADS
 			{
 				size_t offset = [batch begin];
 				size_t bc = [batch count];
@@ -1783,16 +1909,8 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 			vector_t p1 = vertices[tris[i+1]];
 			vector_t p2 = vertices[tris[i+2]];
 			
-			int allEqual = (v3Equal(p0,p1) || v3Equal(p1,p2) || v3Equal(p0,p2));
-			/*
-			int twoEqual	= ((p0.farr[0] == p1.farr[0] ) && (p1.farr[0] == p2.farr[0]))
-							+ ((p0.farr[1] == p1.farr[1] ) && (p1.farr[1] == p2.farr[1]))
-							+ ((p0.farr[2] == p1.farr[2] ) && (p1.farr[2] == p2.farr[2]));
-			
-			if (allEqual || (twoEqual > 1))
-				continue;
-			*/
-			if (allEqual)
+			int isDegenerate = (v3Equal(p0,p1) || v3Equal(p1,p2) || v3Equal(p0,p2));
+			if (isDegenerate)
 				continue;
 
 			vector_t e01 = v3Sub(p1,p0);
@@ -1808,16 +1926,20 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 			oktris[j++] = tris[i+2];
 		}
 
-		free(tris);
 
 		free(indices);
 		indices = oktris;
 
 		numIndices = j;
-		GLMesh_batch* batch = [GLMesh_batch batchStarting: 0 count: numIndices mode: GL_TRIANGLES];
-		[batches removeAllObjects];
-		[batches addObject: batch];
+		dirtyIndices = NSMakeRange(0, numIndices);
 		
+		[batches removeAllObjects];
+		if (numIndices)
+		{
+			GLMesh_batch* batch = [GLMesh_batch batchStarting: 0 count: numIndices mode: GL_TRIANGLES];
+			[batches addObject: batch];
+		}
+		free(tris);
 		if (shouldSmooth)
 		{
 			[self unifyIndices];
@@ -1920,37 +2042,6 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 								
 				break;
 			}
-			case GL_QUADS:
-			{
-				size_t offset = [batch begin];
-				size_t bc = [batch count];
-				for (size_t i = 0; i < bc; i += 4)
-				{
-					size_t a = indices[offset + i], b = indices[offset + i+1], c = indices[offset + i+2], d = indices[offset + i+3];
-					vector_t A = vertices[a];
-					vector_t B = vertices[b];
-					vector_t C = vertices[c];
-					vector_t D = vertices[d];
-					vector_t e01 = v3Sub(B,A);
-					vector_t e12 = v3Sub(C,B);
-					vector_t e23 = v3Sub(D,C);
-					vector_t e30 = v3Sub(A,D);
-					vector_t n0 = vCross(e30,e01);
-					vector_t n1 = vCross(e12,e23);
-					if (normalize) n0 = vSetLength(n0, 1.0);
-					if (normalize) n1 = vSetLength(n1, 1.0);
-					normals[d] = v3Add(normals[d],n0);
-					normals[a] = v3Add(normals[a],n0);
-					normals[b] = v3Add(normals[b],n0);
-					normals[b] = v3Add(normals[b],n1);
-					normals[c] = v3Add(normals[c],n1);
-					normals[d] = v3Add(normals[d],n1);
-					++nt;
-					++nt;
-				}
-								
-				break;
-			}
 			case GL_LINES:
 			case GL_LINE_STRIP:
 			case GL_POINTS:
@@ -1967,12 +2058,12 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	for (size_t i = 0; i < numNormals; ++i)
 		normals[i].farr[3] = 0.0;
 
+    dirtyNormals = NSMakeRange(0, numNormals);
 
 //	if (numNormals != nt*3)
 //		NSLog(@"some normals were shared");
 
 }
-
 - (void) addTrianglesToOctree: (MeshOctree*) octree
 {
 	size_t ntris = 0;
@@ -1993,6 +2084,59 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 				
 				break;
 			}
+/*
+			case GL_TRIANGLE_STRIP:
+			{
+				size_t offset = [batch begin];
+				size_t bc = [batch count];
+				size_t tc = ((bc-2)*3);
+				tris = realloc(tris, sizeof(size_t)*(ntris+tc));
+				for (size_t i = 2; i < bc; i += 1)
+				{
+					size_t a = indices[offset + i-2], b= indices[offset + i-1],c = indices[offset + i];
+					tris[ntris++] = a;
+					tris[ntris++] = b;
+					tris[ntris++] = c;
+				}
+				
+				
+				break;
+			}
+			case GL_TRIANGLE_FAN:
+			{
+				size_t offset = [batch begin];
+				size_t bc = [batch count];
+				size_t tc = ((bc-2)*3);
+				tris = realloc(tris, sizeof(size_t)*(ntris+tc));
+				for (size_t i = 2; i < bc; i += 1)
+				{
+					size_t a = indices[offset + 0], b = indices[offset + i-1], c = indices[offset + i];
+					tris[ntris++] = a;
+					tris[ntris++] = b;
+					tris[ntris++] = c;
+				}
+								
+				break;
+			}
+			case GL_QUADS:
+			{
+				size_t offset = [batch begin];
+				size_t bc = [batch count];
+				size_t tc = (bc*6)/4;
+				tris = realloc(tris, sizeof(size_t)*(ntris+tc));
+				for (size_t i = 0; i < bc; i += 4)
+				{
+					tris[ntris++] = indices[offset + i+0];
+					tris[ntris++] = indices[offset + i+1];
+					tris[ntris++] = indices[offset + i+2];
+					tris[ntris++] = indices[offset + i+2];
+					tris[ntris++] = indices[offset + i+3];
+					tris[ntris++] = indices[offset + i+0];
+				}
+								
+				break;
+			}
+*/
 			case GL_LINES:
 			case GL_LINE_STRIP:
 			case GL_POINTS:
@@ -2009,8 +2153,13 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	free(tris);
 }
 
+- (NSArray*) flattenToMeshes
+{
+	NSMutableArray* ary = [NSArray arrayWithObject: self];
+	return ary;
+}
 
-@synthesize drawSelector, transform, texture, textureMatrix, numTexCoords, texCoords, numNormals, normals, numVertices, vertices, numIndices, indices, vertexBounds, deleteUploadedVertexData;
+@synthesize drawSelector, transform, texture, textureMatrix, numTexCoords, texCoords, numNormals, normals, numVertices, vertices, numIndices, indices, vertexBounds, colors, numColors;
 
 @end
 
@@ -2037,7 +2186,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	if (!fbo)
 		glGenFramebuffers(1, &fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texId, 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, texId, 0);
 	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
 
@@ -2062,7 +2211,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void) finalize
 {
 	if (fbo)
-		[GLResourceDisposal disposeOfResourcesWithTypes: fbo, GL_FRAMEBUFFER, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: fbo, GFX_RESOURCE_FBO, NULL];
 
 	[super finalize];
 }
@@ -2070,7 +2219,6 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void)dealloc
 {
 	glDeleteFramebuffers(1, &fbo);
-	[super dealloc];
 }
 
 @synthesize fbo;
@@ -2087,27 +2235,32 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	width = w;
 	height = h;
 	
-	glGenTextures(1, &shadowTexture);
-	glBindTexture(GL_TEXTURE_2D, shadowTexture);
+    LogGLError(@"begin");
+	
+	shadowTexture = [[GLTexture alloc] init];
+	[shadowTexture genTextureId];
+	[shadowTexture bindTextureAt: 0];
+
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 //	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_, GL_COMPARE_R_TO_TEXTURE_);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC_, GL_LEQUAL);
+//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE_ARB);
+//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC_ARB, GL_LEQUAL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);
+	//glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_, GL_INTENSITY);
 	
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width, height, 0,
 				 GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	
-	fbo = [[FramebufferObject alloc] initAsShadowMap: shadowTexture];
+	fbo = [[FramebufferObject alloc] initAsShadowMap: [shadowTexture textureName]];
 
 //	lightProjectionMatrix = mIdentity();
+    LogGLError(@"-[ShadowMap initWithWidth:height:] end");
 
 	return self;
 }
@@ -2116,7 +2269,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, [fbo fbo]);
 	
-	glPushAttrib(GL_VIEWPORT_BIT | GL_SCISSOR_BIT | GL_ALL_ATTRIB_BITS);
+//	glPushAttrib(GL_VIEWPORT_BIT | GL_SCISSOR_BIT | GL_ALL_ATTRIB_BITS);
 	
 	glDisable(GL_SCISSOR_TEST);
 	glEnable(GL_DEPTH_TEST);
@@ -2131,72 +2284,55 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void) cleanupAfterRendering
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glPopAttrib();
+//	glPopAttrib();
 }
 
 - (void) bindShadowTexture
 {
-	glBindTexture(GL_TEXTURE_2D, shadowTexture);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_, GL_COMPARE_R_TO_TEXTURE_);
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_, GL_NONE);
+	[shadowTexture bindTexture];
+//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE_ARB);
+//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_ARB, GL_NONE);
 }
 
-- (void) visualizeShadowMap
+- (void) visualizeShadowMapWithState: (GfxStateStack*) gfxState
 {
 	if (!vizShader)
 		vizShader = [[GLSLShader alloc] initWithVertexShaderFile: @"shadowviz.vs" fragmentShaderFile: @"shadowviz.fs"];
 	
+	gfxState.shader = vizShader;
+	gfxState.depthTestEnabled = NO;
+	[gfxState setTexture: shadowTexture atIndex: 0];
+	gfxState.blendingEnabled = NO;
 
 	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_LIGHTING);
-	glEnable(GL_TEXTURE_2D);
 	glActiveTexture(GL_TEXTURE0);
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
 	glDisable(GL_BLEND);
 	
-	[vizShader useShader];
-	[vizShader setIntegerUniform: 0 named: @"textureMap"];
+	[gfxState setIntegerUniform: 0 named: @"textureMap"];
+	[gfxState setMatrixUniform: mIdentity() named: @"textureMatrix"];
 	
 //	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	glBindTexture(GL_TEXTURE_2D, shadowTexture);
 	
-//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_, GL_NONE);
+//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE_ARB, GL_NONE);
+	
+	[gfxState submitState];
+	
+	[[GLMesh quadMesh] justDraw];
 
-	glBegin(GL_QUADS);
-
-	glTexCoord2d( 0.0, 0.0);
-	glVertex2d(0.0, 0.0);
-	glTexCoord2d( 1.0, 0.0);
-	glVertex2d(256, 0.0);
-	glTexCoord2d( 1.0, 1.0);
-	glVertex2d(256, 256);
-	glTexCoord2d( 0.0, 1.0);
-	glVertex2d(0.0, 256);
-
-	glEnd();
-
-	[GLSLShader useFixedFunctionPipeline];
 
 }
 
 - (void) finalize
 {
-	if (shadowTexture)
-		[GLResourceDisposal disposeOfResourcesWithTypes: shadowTexture, GL_TEXTURE, NULL];
-
 	[super finalize];
 }
 
 
 - (void) dealloc
 {
-	[fbo release];
-//	[shader release];
-	glDeleteTextures(1, &shadowTexture);
-	[super dealloc];
 }
 
+@synthesize shadowTexture;
 //@synthesize lightProjectionMatrix;
 
 @end
@@ -2204,6 +2340,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 @implementation LightmapTexture
 
 struct lrec { int lo, hi; double t; };
+
 
 - (void) generateLinearizedValues
 {
@@ -2234,7 +2371,7 @@ struct lrec { int lo, hi; double t; };
 	struct lrec * xmv = calloc(sizeof(*xmv), lwidth);
 	struct lrec * ymv = calloc(sizeof(*ymv), lheight);
 	
-	NSLog(@"LMP lin size %d, %d", lwidth, lheight);
+//	NSLog(@"LMP lin size %d, %d", lwidth, lheight);
 	
 	double halfLWidth = 0.5*lwidth;
 	double halfLHeight = 0.5*lheight;
@@ -2299,7 +2436,7 @@ struct lrec { int lo, hi; double t; };
 			lmin = fminf(lmin, val);
 			lmax = fmaxf(lmax, val);
 			linearTexels[j*lwidth+i] = val;
-//			linearTexels[j*lwidth+i] = 1.0;
+			//linearTexels[j*lwidth+i] = 1.0;
 		}
 	}
 	
@@ -2312,12 +2449,14 @@ struct lrec { int lo, hi; double t; };
 	width = lwidth;
 	height = lheight;
 
-	glGenTextures (1, &texId);
+	LogGLError(@"LMP texgen begin");
+
+    if (!textureName)
+        glGenTextures (1, &textureName);
 	
 //	NSLog(@"LMP texId %d", texId);
 //	NSLog(@"LMP min max %f %f", lmin, lmax);
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture (GL_TEXTURE_2D, texId); 
+	glBindTexture (GL_TEXTURE_2D, textureName); 
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -2325,13 +2464,21 @@ struct lrec { int lo, hi; double t; };
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE32F_ARB, width, height, 0, GL_LUMINANCE, GL_FLOAT, linearTexels);
-	//glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE32F_, sourceWidth, sourceHeight, 0, GL_LUMINANCE, GL_FLOAT, sourceTexels);
-	glDisable(GL_TEXTURE_2D);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, linearTexels);
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE32F_ARB, sourceWidth, sourceHeight, 0, GL_LUMINANCE, GL_FLOAT, sourceTexels);
 	
-	LogGLError(@"LMP texgen");
+	LogGLError(@"LMP texgen end");
 	
 }
+
+- (void) generateGLTexture
+{
+	if (!textureName)
+		glGenTextures(1, &textureName);
+    
+    [self generateLinearizedValues];
+}
+
 
 - (id) initWithLightmapNamed: (NSString*) fileName filter: (BOOL) doFilter
 {
@@ -2354,7 +2501,6 @@ struct lrec { int lo, hi; double t; };
 	if ([values count] < 8)
 	{
 		NSLog(@"LMP: not enough entries in file %@.", fileName);
-		[self release];
 		return nil;
 	}
 
@@ -2378,14 +2524,13 @@ struct lrec { int lo, hi; double t; };
 	sourceWidth = (double)(xmax - xmin)/xdiv+1;
 	sourceHeight = (double)(ymax - ymin)/ydiv+1;
 	
-	NSLog(@"LMP angle h: %d, v: %d", xmax, ymax);
-	NSLog(@"LMP width: %zd, height: %zd", sourceWidth, sourceHeight);
+//	NSLog(@"LMP angle h: %d, v: %d", xmax, ymax);
+//	NSLog(@"LMP width: %zd, height: %zd", sourceWidth, sourceHeight);
 	
 	size_t entries = sourceWidth*sourceHeight;
-	NSLog(@"LMP %zd,%zd", entries, (size_t)[values count]-7);
+//	NSLog(@"LMP %zd,%d", entries, [values count]-7);
 	if (!([values count]+7 > entries))
 	{
-		[self release];
 		return nil;
 	}
 	
@@ -2461,10 +2606,12 @@ struct lrec { int lo, hi; double t; };
 		sourceTexels = filteredTexels;
 	}
 
-	NSLog(@"LMP min %f max %f", minValue, maxValue);
+//	NSLog(@"LMP min %f max %f", minValue, maxValue);
 //	NSLog(@"LMP values processed %d", i);
 	
-	[self generateLinearizedValues];
+	//[self generateLinearizedValues];
+    
+    LogGLError(@"end");
 
 	return self;
 }
@@ -2485,7 +2632,6 @@ struct lrec { int lo, hi; double t; };
 		free(sourceTexels);
 	if (linearTexels)
 		free(linearTexels);
-	[super dealloc];
 }
 
 - (double) aspectRatio
@@ -2497,39 +2643,26 @@ struct lrec { int lo, hi; double t; };
 	return (double)(ymax-ymin)*M_PI/180.0;
 }
 
-- (void) visualizeLightMap
+- (void) visualizeLightMapWithState: (GfxStateStack*) gfxState
 {
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_LIGHTING);
-	glDisable(GL_BLEND);
-	glEnable(GL_TEXTURE_2D);
-	glActiveTexture(GL_TEXTURE0);
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
+	gfxState.depthTestEnabled = NO;
+	gfxState.blendingEnabled = NO;
+	gfxState.shader = vizShader;
+    [vizShader useShader];
 	
-	glBindTexture(GL_TEXTURE_2D, texId);
+	[gfxState setTexture: self atIndex: 0];
+	
+	[gfxState setFloatUniform: 1.0/log(maxValue) named: @"logscale"];
+	[gfxState setIntegerUniform: 0 named: @"textureMap"];
+	//[gfxState setMatrixUniform: mIdentity() named: @"textureMatrix"];
 
-	[vizShader useShader];
-	[vizShader setFloatUniform: 1.0/log(maxValue) named: @"logscale"];
-	[vizShader setIntegerUniform: 0 named: @"textureMap"];
+	gfxState.color = vCreate(1.0f, 1.0f, 1.0f, 1.0f);
 
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-	glBegin(GL_QUADS);
-
-	glTexCoord2d( 0.0, 0.0);
-	glVertex2d(0.0, 0.0);
-	glTexCoord2d( 1.0, 0.0);
-	glVertex2d(width, 0.0);
-	glTexCoord2d( 1.0, 1.0);
-	glVertex2d(width, height);
-	glTexCoord2d( 0.0, 1.0);
-	glVertex2d(0.0, height);
-	glEnd();
+	[gfxState submitState];
 	
-	[GLSLShader useFixedFunctionPipeline];
+	[[GLMesh quadMesh] justDraw];
 	
-	glDisable(GL_TEXTURE_2D);
-	
+		
 	LogGLError(@"-visualizeLightMap");
 }
 
@@ -2548,13 +2681,14 @@ static BOOL _gfx_isMipmappingSupported = NO;
 {
 	if (_gfx_isMipmappingChecked)
 		return _gfx_isMipmappingSupported;
+    
+    LogGLError(@"begin");
 	
 	GLuint texId = 0;
 	uint32_t	bitmap[20] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
 	glGenTextures(1, &texId);
-	glEnable(GL_TEXTURE_2D);
 	glBindTexture (GL_TEXTURE_2D, texId);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 4);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -2566,18 +2700,9 @@ static BOOL _gfx_isMipmappingSupported = NO;
 
 	LogGLError(@"mipmap check");
 
-	glColor4f(0.0,0.0,0.0,0.0);
-
-	glBegin(GL_QUADS);
-	glTexCoord2d(1.0,0.0);
-	glVertex2d( 1.0, 1.0);
-	glTexCoord2d(0.0,0.0);
-	glVertex2d(-1.0, 1.0);
-	glTexCoord2d(0.0,1.0);
-	glVertex2d(-1.0,-1.0);
-	glTexCoord2d(1.0,1.0);
-	glVertex2d( 1.0,-1.0);
-	glEnd();
+	//glVertexAttrib4f(GFX_ATTRIB_COLOR, 0.0f, 0.0f, 0.0f, 0.0f);
+	
+	[[GLMesh quadMesh] justDraw];
 
     GLint hardwareAccelerated = -1;
 /*
@@ -2620,131 +2745,29 @@ static BOOL _gfx_isMipmappingSupported = NO;
 
 + (BOOL) isMipMappingSupported
 {
-	return [self checkForMipMapping];
+    return YES;
+	//return [self checkForMipMapping];
 }
+
+@synthesize textureName;
 
 - (void) genTextureId
 {
-	glGenTextures (1, &texId);
+	glGenTextures (1, &textureName);
 }
 
 
-- (void) generateGLTexture
+
+
+- (id) initWithName: (NSString*) theName
 {
-	if (!image)
-		image = [NSImage imageNamed: name];
-	
-	if (!image)
-	{
-		NSLog(@"Image not found: %@", name);
-		return;
-	}
-
-	NSImageRep* irep = [[image representations] objectAtIndex: 0];
-
-    NSSize imgSize = NSMakeSize([irep pixelsWide], [irep pixelsHigh]);
-	
-	if (imgSize.width > [GfxNode maxTextureSize])
-	{
-		double factor = (double)[GfxNode maxTextureSize]/imgSize.width;
-		imgSize.width = floor(factor*imgSize.width);
-		imgSize.height = floor(factor*imgSize.height);
-	}
-	if (imgSize.height > [GfxNode maxTextureSize])
-	{
-		double factor = (double)[GfxNode maxTextureSize]/imgSize.height;
-		imgSize.width = floor(factor*imgSize.width);
-		imgSize.height = floor(factor*imgSize.height);
-	}
-
-	NSRect frame = {{0.0, 0.0}, imgSize};
-
-	unsigned char* bytes = malloc(imgSize.width*imgSize.height*4);
-	
-	
-	NSBitmapImageRep* bitmap = [[NSBitmapImageRep alloc]
-					initWithBitmapDataPlanes:&bytes
-								  pixelsWide:imgSize.width
-								  pixelsHigh:imgSize.height
-							   bitsPerSample:8
-							 samplesPerPixel:4
-									hasAlpha:YES
-									isPlanar:NO
-							  colorSpaceName:NSDeviceRGBColorSpace
-								bitmapFormat: NSAlphaFirstBitmapFormat
-								 bytesPerRow:4*(int)imgSize.width
-								bitsPerPixel:0];
-
- 
-	NSGraphicsContext* context = [NSGraphicsContext graphicsContextWithBitmapImageRep: bitmap];
-	if (!context)
-		NSLog(@"%@", name);
-	assert(context);
-	[context setImageInterpolation:NSImageInterpolationNone];
-	[NSGraphicsContext saveGraphicsState];
-	[NSGraphicsContext setCurrentContext: context];
-	
-	[[NSColor clearColor] set];
-	NSRectFill(frame);
-
-	//[image compositeToPoint:NSZeroPoint operation:NSCompositeSourceOver];
-	[image drawInRect: frame fromRect: NSZeroRect operation: NSCompositeSourceOver fraction: 1.0];
-
-	[context flushGraphics];
-	[NSGraphicsContext restoreGraphicsState];
-	imgSize = [bitmap size];
-	
-	//NSLog(@"frameSize %f, %f", frame.size.width, frame.size.height);
-	//NSLog(@"bitmapSize %f, %f", texSize.width, texSize.height);
-
-	BOOL doMipmap = [GLTexture isMipMappingSupported];
-
-	glGenTextures (1, &texId);
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture (GL_TEXTURE_2D, texId);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	if(doMipmap)
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	else
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, imgSize.width, imgSize.height, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8, [bitmap bitmapData]);
-
-	if(doMipmap)
-		glGenerateMipmapEXT(GL_TEXTURE_2D);
-
-	glBindTexture (GL_TEXTURE_2D, 0);
-
-	[bitmap release];
-	free(bytes);
-	image = nil;
-}
-
-- (id) initWithImageNamed: (NSString*) fileName
-{
-	self = [super init];
-	if (!self)
+	if (!(self = [super init]))
 		return nil;
-		
-	name = [fileName copy];
-	image = [NSImage imageNamed: fileName];
-
+	
+	name = [theName copy];
+	
 	return self;
 }
-
-- (id) initWithImage: (NSImage*) img
-{
-	self = [super init];
-	if (!self)
-		return nil;
-		
-	image = img;
-
-	return self;
-}
-
 
 - (id) initWithTexId: (GLuint) tid named: (NSString*) fileName
 {
@@ -2752,46 +2775,32 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	if (!self)
 		return nil;
 	
-	texId = tid;
+	textureName = tid;
 	name = [fileName copy];
 
 	return self;
 }
 
-- (matrix_t) denormalMatrix
+
+- (void) generateGLTexture
 {
-	if (width && height)
-		return mScaleMatrix(vCreateDir(1.0/(double)width, 1.0/(double)height, 1.0));
-	
-	
-	if (name && !image)
-		image = [NSImage imageNamed: name];
-
-	if (image)
-	{
-		NSImageRep* irep = [[image representations] objectAtIndex: 0];
-		return mScaleMatrix(vCreateDir(1.0/(double)[irep pixelsWide], 1.0/(double)[irep pixelsHigh], 1.0));
-	}
-	else
-		return mIdentity();
+	if (!textureName)
+		glGenTextures(1, &textureName);
 }
-
 
 - (void) bindTexture
 {
-	if (!texId)
+	if (!textureName)
 		[self generateGLTexture];
 
-	glBindTexture(GL_TEXTURE_2D, texId);
+	glBindTexture(GL_TEXTURE_2D, textureName);
 }
 
 - (void) bindTextureAt: (GLuint) num
 {
-	if (!texId)
-		[self generateGLTexture];
-
 	glActiveTexture(GL_TEXTURE0 + num);
-	glBindTexture(GL_TEXTURE_2D, texId);
+
+    [self bindTexture];
 }
 
 
@@ -2818,9 +2827,8 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	GLTexture* tex = [GLTexture_dict objectForKey: name];
 	if (!tex)
 	{
-		tex = [[GLTexture alloc] initWithImageNamed: name];
+		tex = [[GLImageTexture alloc] initWithImageNamed: name];
 		[GLTexture_dict setValue: tex forKey: name];
-		[tex release];
 	}
 	
 	
@@ -2846,15 +2854,15 @@ static BOOL _gfx_isMipmappingSupported = NO;
 
 	tex = [[GLTexture alloc] initWithTexId: tid named: name];
 	[GLTexture_dict setValue: tex forKey: name];
-	[tex release];
+
 	return tex;
 }
 
 
 - (void) finalize
 {
-	if (texId)
-		[GLResourceDisposal disposeOfResourcesWithTypes: texId, GL_TEXTURE, NULL];
+	if (textureName)
+		[GLResourceDisposal disposeOfResourcesWithTypes: textureName, GFX_RESOURCE_TEXTURE, NULL];
 
 	[super finalize];
 }
@@ -2862,14 +2870,253 @@ static BOOL _gfx_isMipmappingSupported = NO;
 
 - (void) dealloc
 {
-	glDeleteTextures(1, &texId);
-	[name release];
-	[super dealloc];
+	if (textureName)
+		[GLResourceDisposal disposeOfResourcesWithTypes: textureName, GFX_RESOURCE_TEXTURE, NULL];
 }
 
-@synthesize width, height, name, image;
+@synthesize width, height, name;
 
 @end
+
+@implementation GLImageTexture
+
+@synthesize image;
+
+- (matrix_t) denormalMatrix
+{
+	if (width && height)
+		return mScaleMatrix(vCreateDir(1.0/(double)width, 1.0/(double)height, 1.0));
+	
+	
+	if (name && !image)
+		image = [NSImage imageNamed: name];
+	
+	if (image)
+	{
+		NSImageRep* irep = [[image representations] objectAtIndex: 0];
+		return mScaleMatrix(vCreateDir(1.0/(double)[irep pixelsWide], 1.0/(double)[irep pixelsHigh], 1.0));
+	}
+	else
+		return mIdentity();
+}
+
+
+- (void) generateGLTexture
+{
+	if (!image)
+		image = [NSImage imageNamed: name];
+	
+	if (!image)
+	{
+		NSLog(@"Image not found: %@", name);
+		return;
+	}
+	
+	NSImageRep* irep = [[image representations] objectAtIndex: 0];
+	
+    NSSize imgSize = NSMakeSize([irep pixelsWide], [irep pixelsHigh]);
+	
+	if (imgSize.width > [GfxNode maxTextureSize])
+	{
+		double factor = (double)[GfxNode maxTextureSize]/imgSize.width;
+		imgSize.width = floor(factor*imgSize.width);
+		imgSize.height = floor(factor*imgSize.height);
+	}
+	if (imgSize.height > [GfxNode maxTextureSize])
+	{
+		double factor = (double)[GfxNode maxTextureSize]/imgSize.height;
+		imgSize.width = floor(factor*imgSize.width);
+		imgSize.height = floor(factor*imgSize.height);
+	}
+	
+	NSRect frame = {{0.0, 0.0}, imgSize};
+	
+	unsigned char* bytes = calloc(1,imgSize.width*imgSize.height*4);
+	
+	
+	NSBitmapImageRep* bitmap = [[NSBitmapImageRep alloc]
+								initWithBitmapDataPlanes:&bytes
+								pixelsWide:imgSize.width
+								pixelsHigh:imgSize.height
+								bitsPerSample:8
+								samplesPerPixel:4
+								hasAlpha:YES
+								isPlanar:NO
+								colorSpaceName:NSDeviceRGBColorSpace
+								bitmapFormat: NSAlphaFirstBitmapFormat
+								bytesPerRow:4*(int)imgSize.width
+								bitsPerPixel:0];
+	
+	
+	NSGraphicsContext* context = [NSGraphicsContext graphicsContextWithBitmapImageRep: bitmap];
+	if (!context)
+		NSLog(@"%@", name);
+	assert(context);
+	[context setImageInterpolation:NSImageInterpolationNone];
+	[NSGraphicsContext saveGraphicsState];
+	[NSGraphicsContext setCurrentContext: context];
+	
+	[[NSColor clearColor] set];
+	NSRectFill(frame);
+	
+	//[image compositeToPoint:NSZeroPoint operation:NSCompositeSourceOver];
+	[image drawInRect: frame fromRect: NSZeroRect operation: NSCompositeSourceOver fraction: 1.0];
+	
+	[context flushGraphics];
+	[NSGraphicsContext restoreGraphicsState];
+	imgSize = [bitmap size];
+	
+	//NSLog(@"frameSize %f, %f", frame.size.width, frame.size.height);
+	//NSLog(@"bitmapSize %f, %f", texSize.width, texSize.height);
+	
+	BOOL doMipmap = [GLTexture isMipMappingSupported];
+	
+    if (!textureName)
+        glGenTextures (1, &textureName);
+	glBindTexture (GL_TEXTURE_2D, textureName);
+	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	if(doMipmap)
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	else
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, imgSize.width, imgSize.height, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8, [bitmap bitmapData]);
+	
+	if(doMipmap)
+		glGenerateMipmap(GL_TEXTURE_2D);
+	
+	glBindTexture (GL_TEXTURE_2D, 0);
+	
+	free(bytes);
+	image = nil;
+}
+
+- (id) initWithImageNamed: (NSString*) fileName
+{
+	self = [super init];
+	if (!self)
+		return nil;
+	
+	name = [fileName copy];
+	image = [NSImage imageNamed: fileName];
+	
+	return self;
+}
+
+- (id) initWithImage: (NSImage*) img
+{
+	self = [super init];
+	if (!self)
+		return nil;
+	
+	image = img;
+	
+	return self;
+}
+@end
+
+@implementation GLDataTexture
+{
+	GLint internalformat;
+	GLint border;
+	GLenum format;
+	GLenum type;
+	void *pixels;
+	BOOL isDirty;
+}
+
+@synthesize internalFormat, border, format, type, pixels, isDirty;
+
+- (id) initWithName: (NSString*) aName
+{
+	if (!(self = [super initWithName: aName]))
+		return nil;
+	
+	isDirty = YES;
+	
+	return self;
+}
+
++ (id) textureNamed: (NSString*) name
+{
+	if (!GLTexture_dict)
+		GLTexture_dict = [[NSMutableDictionary alloc] init];
+	
+	
+	GLTexture* tex = [GLTexture_dict objectForKey: name];
+	if (!tex)
+	{
+		tex = [[GLDataTexture alloc] initWithName: name];
+		[GLTexture_dict setValue: tex forKey: name];
+	}
+	
+	
+	return tex;
+}
+
+- (id) init
+{
+	if (!(self =[super init]))
+		return nil;
+	
+	isDirty = YES;
+	
+	return self;
+}
+
+- (void) generateGLTexture
+{
+	if (!textureName)
+		glGenTextures(1, &textureName);
+	
+	if (isDirty)
+	{
+		glBindTexture(GL_TEXTURE_2D, textureName);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, border, format, type, pixels);
+		//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_ARB, 4);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	isDirty = NO;
+}
+
+
+- (void) dealloc
+{
+	free(pixels);
+}
+
+- (GLsizei) width
+{
+	return width;
+}
+
+- (GLsizei) height
+{
+	return height;
+}
+
+- (void) setWidth:(GLsizei)x
+{
+	width = x;
+	isDirty = YES;
+}
+
+- (void) setHeight:(GLsizei)x
+{
+	height = x;
+	isDirty = YES;
+}
+
+@end
+
 
 @implementation TransformNode
 
@@ -2923,22 +3170,25 @@ static BOOL _gfx_isMipmappingSupported = NO;
 		return mTransform(mInverse([node completeTransform]), [self completeTransform]);
 }
 
+- (NSArray*) flattenToMeshes
+{
+	NSMutableArray* ary = [NSArray array];
+	return ary;
+}
+
 - (void) dealloc
 {
-	[parentTransform release];
-	[super dealloc];
 }
 
-- (void) preDraw
+- (void) preDrawWithState: (GfxStateStack*) gfxState
 {
-	glMatrixMode(GL_MODELVIEW);
-	glMultMatrix(matrix);
+	gfxState.modelViewMatrix = mTransform(gfxState.modelViewMatrix, matrix);
 }
-- (void) postDraw
+- (void) postDrawWithState: (GfxStateStack*) gfxState
 {
 }
 
-- (void) drawHierarchy
+- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
 }
 
@@ -2989,33 +3239,34 @@ static BOOL _gfx_isMipmappingSupported = NO;
 }
 
 
-- (void) preDraw
+- (void) preDrawWithState: (GfxStateStack*) gfxState
 {
 }
-- (void) postDraw
+- (void) postDrawWithState: (GfxStateStack*) gfxState
 {
 }
 
-- (void) drawHierarchy
+- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-
+    assert(gfxState);
 	for (id child in children)
 	{
-		[child preDraw];
+		[child preDrawWithState: gfxState];
 	}
-	for (id child in children)
+ 
+    [gfxState submitState];
+	
+    for (id child in children)
 	{
-		[child drawHierarchy];
+        assert(gfxState = [gfxState pushState]);
+		[child drawHierarchyWithState: gfxState];
+        assert(gfxState = [gfxState popState]);
 	}
 	for (id child in [children reverseObjectEnumerator])
 	{
-		[child postDraw];
+		[child postDrawWithState: gfxState];
 	}
 
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
 }
 
 - (void) optimizeTransforms
@@ -3033,7 +3284,7 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	
 	[children removeObjectsInArray: superflousTransforms];
 	
-	[children insertObject: [[[TransformNode alloc] initWithMatrix: m] autorelease] atIndex: 0];
+	[children insertObject: [[TransformNode alloc] initWithMatrix: m] atIndex: 0];
 }
 
 - (matrix_t) localTransform
@@ -3060,7 +3311,7 @@ static BOOL _gfx_isMipmappingSupported = NO;
 		}
 	}
 	
-	[children insertObject: [[[TransformNode alloc] initWithMatrix: m] autorelease] atIndex: 0]; 
+	[children insertObject: [[TransformNode alloc] initWithMatrix: m] atIndex: 0]; 
 }
 
 - (range3d_t) vertexBounds
@@ -3083,6 +3334,27 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	}
 	assert(!vIsNAN(r.minv) && !vIsNAN(r.maxv));
 	return r;
+}
+
+- (void) addTrianglesToOctree: (MeshOctree*) octree
+{
+	for (id child in children)
+	{
+		if ([child respondsToSelector: @selector(addTrianglesToOctree:)])
+		{
+			[child addTrianglesToOctree: octree];
+		}
+	}
+}
+
+- (NSArray*) flattenToMeshes
+{
+	NSMutableArray* ary = [NSMutableArray array];
+	for (id child in children)
+	{
+		[ary addObjectsFromArray: [child flattenToMeshes]];
+	}
+	return ary;
 }
 
 /*
@@ -3154,17 +3426,19 @@ static size_t _gfxMaxTextureSize = 0;
 + (void) checkCapabilities
 {
 
-	const char* extensions = (const char*)glGetString(GL_EXTENSIONS);
-
-	_gfxFloatTexturesSupported = gluCheckExtension((const GLubyte*)"GL__texture_float", (const GLubyte*)extensions);
-	_gfxGlslSupported = gluCheckExtension((const GLubyte*)"GL__fragment_program", (const GLubyte*)extensions);
-	_gfxNpotTexturesSupported = gluCheckExtension((const GLubyte*)"GL__texture_non_power_of_two", (const GLubyte*)extensions);
+//	const char* extensions = (const char*)glGetString(GL_EXTENSIONS);
+/*
+	_gfxFloatTexturesSupported = gluCheckExtension((const GLubyte*)"GL_ARB_texture_float", (const GLubyte*)extensions);
+	_gfxGlslSupported = gluCheckExtension((const GLubyte*)"GL_ARB_fragment_program", (const GLubyte*)extensions);
+	_gfxNpotTexturesSupported = gluCheckExtension((const GLubyte*)"GL_ARB_texture_non_power_of_two", (const GLubyte*)extensions);
 	
 	_gfxFrameBufferObjectsSupported = gluCheckExtension((const GLubyte*)"GL_EXT_framebuffer_object", (const GLubyte*)extensions);
-	
+*/
 	GLint texSize = 0;
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &texSize);
 	_gfxMaxTextureSize = texSize;
+    
+    LogGLError(@"caps checked")
 
 //	GLint elementsVertices = 0;
 //	glGetIntegerv(GL_MAX_ELEMENTS_VERTICES, &elementsVertices);
@@ -3183,6 +3457,7 @@ static GLResourceDisposal* _sharedDisposal = nil;
 	if (!(self = [super init]))
 		return nil;
 	
+	vaos = calloc(1,1);
 	vbos = calloc(1,1);
 	fbos = calloc(1,1);
 	rbos = calloc(1,1);
@@ -3205,23 +3480,27 @@ static GLResourceDisposal* _sharedDisposal = nil;
 			size_t type = va_arg(argumentList, size_t);
 			switch(type)
 			{
-				case GL_TEXTURE:
+				case GFX_RESOURCE_TEXTURE:
 					textures = realloc(textures, sizeof(*textures)*(numTextures+1));
 					textures[numTextures++] = rsrc;
 					break;
-				case GL_VERTEX_ARRAY:
+				case GFX_RESOURCE_VAO:
+					vaos = realloc(vaos, sizeof(*vaos)*(numVaos+1));
+					vaos[numVaos++] = rsrc;
+					break;
+				case GFX_RESOURCE_VBO:
 					vbos = realloc(vbos, sizeof(*vbos)*(numVbos+1));
 					vbos[numVbos++] = rsrc;
 					break;
-				case GL_FRAMEBUFFER:
+				case GFX_RESOURCE_FBO:
 					fbos = realloc(fbos, sizeof(*fbos)*(numFbos+1));
 					fbos[numFbos++] = rsrc;
 					break;
-				case GL_RENDERBUFFER:
+				case GFX_RESOURCE_RBO:
 					rbos = realloc(rbos, sizeof(*rbos)*(numRbos+1));
 					rbos[numRbos++] = rsrc;
 					break;
-				case GL_SHADER_OBJECT_ARB:
+				case GFX_RESOURCE_PROGRAM:
 					programs = realloc(programs, sizeof(*programs)*(numPrograms+1));
 					programs[numPrograms++] = (GLuint)rsrc;
 					break;
@@ -3238,20 +3517,19 @@ static GLResourceDisposal* _sharedDisposal = nil;
 {
 	[lock lock];
 
-	if (numTextures)
-		glDeleteTextures(numTextures, textures);
+	glDeleteTextures(numTextures, textures);
 	numTextures = 0;
 	
-	if (numFbos)
-		glDeleteFramebuffers(numFbos, fbos);
+	glDeleteFramebuffers(numFbos, fbos);
 	numFbos = 0;
 
-	if (numRbos)
-		glDeleteRenderbuffers(numRbos, rbos);
+	glDeleteRenderbuffers(numRbos, rbos);
 	numRbos = 0;
 
-	if (numVbos)
-		glDeleteBuffers(numVbos, vbos);
+	glDeleteVertexArrays(numVaos, vaos);
+	numVaos = 0;
+	
+	glDeleteBuffers(numVbos, vbos);
 	numVbos = 0;
 	
 	for (size_t i = 0; i < numPrograms; ++i)

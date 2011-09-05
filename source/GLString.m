@@ -2,7 +2,7 @@
 #import "GLString.h"
 #import "gfx.h"
 
-#import <OpenGL/OpenGL.h>
+#import <OpenGL/gl3.h>
 
 
 // The following is a NSBezierPath category to allow
@@ -32,7 +32,7 @@
 - (void) finalize
 {
 	if (texName)
-		[GLResourceDisposal disposeOfResourcesWithTypes: texName, GL_TEXTURE, NULL];
+		[GLResourceDisposal disposeOfResourcesWithTypes: texName, GFX_RESOURCE_TEXTURE, NULL];
 
 	[super finalize];
 }
@@ -100,7 +100,7 @@
 {
 }
 
-- (void) generateTextureSized: (NSSize) texSize; // generates the texture without drawing texture to current context
+- (void) generateTextureSized: (NSSize) texSize // generates the texture without drawing texture to current context
 {
 	NSImage * image = nil;
 	NSBitmapImageRep * bitmap = nil;
@@ -126,7 +126,7 @@
 //	BOOL doMipmap = [GLTexture isMipMappingSupported] && filterTexture && mipmapTexture;
 	BOOL doMipmap = YES;
 	
-	glPushAttrib(GL_TEXTURE_BIT);
+//	glPushAttrib(GL_TEXTURE_BIT);
 	if (0 == texName)
 		glGenTextures (1, &texName);
 	glBindTexture (GL_TEXTURE_2D, texName);
@@ -149,12 +149,9 @@
 	else
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (filterTexture ? GL_LINEAR : GL_NEAREST));
 	if(doMipmap)
-		glGenerateMipmapEXT(GL_TEXTURE_2D);
+		glGenerateMipmap(GL_TEXTURE_2D);
 
-	glPopAttrib();
-
-	[bitmap release];
-	[image release];
+//	glPopAttrib();
 	
 	textureSize = texSize;
 	
@@ -179,6 +176,7 @@
 		return textureSize;
 }
 
+/*
 - (void) drawWithBounds:(NSRect)bounds
 {
 	[self updateTextureIfRequired];
@@ -228,7 +226,7 @@
 {
 	[self drawCenteredAtPoint: point scaled: 1.0];
 }
-
+*/
 
 @synthesize antialias, subpixelAA, texturePadding, filterTexture, mipmapTexture, textureSize, texName;
 
@@ -286,16 +284,14 @@
 
 - (void) setBoxColor:(NSColor *)color // set default text color
 {
-	[boxColor release];
-	boxColor = [color retain];
+	boxColor = color;
 	requiresUpdate = YES;
 }
 
 
 - (void) setBorderColor:(NSColor *)color // set default text color
 {
-	[borderColor release];
-	borderColor = [color retain];
+	borderColor = color;
 	requiresUpdate = YES;
 }
 
@@ -512,20 +508,20 @@
 
 - (id) initWithString:(NSString *)aString withAttributes:(NSDictionary *)attribs withTextColor:(NSColor *)text withBoxColor:(NSColor *)box withBorderColor:(NSColor *)border
 {
-	defaultAttributes = [attribs retain];
-	return [self initWithAttributedString:[[[NSAttributedString alloc] initWithString:aString attributes:attribs] autorelease] withTextColor:text withBoxColor:box withBorderColor:border];
+	defaultAttributes = attribs;
+	return [self initWithAttributedString: [[NSAttributedString alloc] initWithString:aString attributes:attribs] withTextColor:text withBoxColor:box withBorderColor:border];
 }
 
 // basic methods that pick up defaults
-- (id) initWithAttributedString:(NSAttributedString *)attributedString;
+- (id) initWithAttributedString:(NSAttributedString *)attributedString
 {
 	return [self initWithAttributedString:attributedString withTextColor:[NSColor colorWithDeviceRed:1.0f green:1.0f blue:1.0f alpha:1.0f] withBoxColor:[NSColor colorWithDeviceRed:1.0f green:1.0f blue:1.0f alpha:0.0f] withBorderColor:[NSColor colorWithDeviceRed:1.0f green:1.0f blue:1.0f alpha:0.0f]];
 }
 
 - (id) initWithString:(NSString *)aString withAttributes:(NSDictionary *)attribs
 {
-	defaultAttributes = [attribs retain];
-	return [self initWithAttributedString:[[[NSAttributedString alloc] initWithString:aString attributes:attribs] autorelease] withTextColor: nil withBoxColor: nil withBorderColor: nil];
+	defaultAttributes = attribs;
+	return [self initWithAttributedString: [[NSAttributedString alloc] initWithString:aString attributes:attribs] withTextColor: nil withBoxColor: nil withBorderColor: nil];
 //	return [self initWithAttributedString:[[[NSAttributedString alloc] initWithString:aString attributes:attribs] autorelease] withTextColor:[NSColor colorWithDeviceRed:1.0f green:1.0f blue:1.0f alpha:1.0f] withBoxColor:[NSColor colorWithDeviceRed:1.0f green:1.0f blue:1.0f alpha:0.0f] withBorderColor:[NSColor colorWithDeviceRed:1.0f green:1.0f blue:1.0f alpha:0.0f]];
 }
 
@@ -563,8 +559,7 @@
 
 - (void) setTextColor:(NSColor *)color // set default text color
 {
-	[textColor release];
-	textColor = [color retain];
+	textColor = color;
 	requiresUpdate = YES;
 }
 
@@ -635,9 +630,9 @@
 	requiresUpdate = YES;
 }
 
-- (void) setString:(NSString *)aString withAttributes:(NSDictionary *)attribs; // set string after initial creation
+- (void) setString:(NSString *)aString withAttributes:(NSDictionary *)attribs // set string after initial creation
 {
-	[self setString:[[[NSAttributedString alloc] initWithString:aString attributes:attribs] autorelease]];
+	[self setString: [[NSAttributedString alloc] initWithString:aString attributes:attribs]];
 }
 
 @synthesize textColor;

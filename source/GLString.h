@@ -1,7 +1,8 @@
 
 #import <Cocoa/Cocoa.h>
-#import <OpenGL/gl.h>
+#import <OpenGL/gl3.h>
 
+@class GLSLShader;
 
 @interface GLQuartzTexture : NSObject
 {
@@ -17,11 +18,11 @@
 }
 
 
-- (void) drawWithBounds:(NSRect)bounds;
-- (void) drawCenteredAtPoint:(NSPoint)point scaled: (double) scale;
-- (void) drawAtPoint:(NSPoint)point scaled: (double) scale;
-- (void) drawAtPoint:(NSPoint)point;
-- (void) drawCenteredAtPoint:(NSPoint)point;
+- (void) drawWithBounds:(NSRect)bounds withShader: (GLSLShader*) shader;
+- (void) drawCenteredAtPoint:(NSPoint)point scaled: (double) scale withShader: (GLSLShader*) shader;
+- (void) drawAtPoint:(NSPoint)point scaled: (double) scale withShader: (GLSLShader*) shader;
+- (void) drawAtPoint:(NSPoint)point withShader: (GLSLShader*) shader;
+- (void) drawCenteredAtPoint:(NSPoint)point withShader: (GLSLShader*) shader;
 
 - (GLuint) texName; // 0 if no texture allocated
 
@@ -35,7 +36,7 @@
 @property(nonatomic) BOOL filterTexture;
 @property(nonatomic) BOOL mipmapTexture;
 @property(nonatomic) double texturePadding;
-@property(nonatomic,readonly) NSSize textureSize;
+@property(readonly) NSSize textureSize;
 @property(readonly) GLuint texName;
 
 @end
@@ -51,8 +52,8 @@
 	double		cornerRadius;
 }
 
-@property(nonatomic,retain) NSColor* fillColor;
-@property(nonatomic,retain) NSColor* borderColor;
+@property(nonatomic, retain) NSColor* fillColor;
+@property(nonatomic, retain) NSColor* borderColor;
 
 @property(nonatomic) double innerRadius;
 @property(nonatomic) double outerRadius;
@@ -72,8 +73,8 @@
 	double		borderWidth;
 }
 
-@property(nonatomic,retain) NSColor* boxColor;
-@property(nonatomic,retain) NSColor* borderColor;
+@property(nonatomic, retain) NSColor* boxColor;
+@property(nonatomic, retain) NSColor* borderColor;
 
 @property(nonatomic) NSSize frameSize;
 @property(nonatomic) double cornerRadius;
@@ -119,7 +120,7 @@
 - (void) setAttributedString:(NSAttributedString *)attributedString; // set string after initial creation
 - (void) setString:(NSString *)aString withAttributes:(NSDictionary *)attribs; // set string after initial creation
 
-@property(nonatomic,retain) NSColor* textColor;
+@property(nonatomic, retain) NSColor* textColor;
 
 @end
 

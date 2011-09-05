@@ -46,33 +46,6 @@ void MeshOctree_dealloc(MeshOctree* self)
 //	free(self);
 }
 
-/*
-MeshOctree*	MeshOctree_release(MeshOctree* self)
-{
-	if (!self)
-		return self;
-	self->refCount--;
-	assert(self->refCount >= 0);
-	if (!self->refCount)
-	{
-		MeshOctree_dealloc(self);
-		self = NULL;
-	}
-
-	return self;
-}
-
-MeshOctree*	MeshOctree_retain(MeshOctree* self)
-{
-	if (!self)
-		return self;
-	
-	self->refCount++;
-	assert(self->refCount);
-
-	return self;
-}
-*/
 OctreeNode* OctreeNode_alloc(void)
 {
 	OctreeNode* self = calloc(sizeof(*self), 1);
@@ -760,10 +733,9 @@ void MeshOctree_addVerticesAndTriangles(MeshOctree* self, vector_t* vs, size_t v
 }
 
 
-- (void) finalize
+- (void) dealloc
 {
 	MeshOctree_dealloc(self);
-	[super finalize];
 }
 
 @end

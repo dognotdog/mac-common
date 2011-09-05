@@ -1,25 +1,29 @@
-/*
- *  simple.vs
- *
- *  Created by döme on 04.08.2009.
- *
- */
+#version 150
 
+in vec4 vertex;
+in vec4 normal;
+in vec4 texcoord0;
 
-varying vec3 surfaceNormal;
-varying vec4 vertexPos;
-varying vec4 primaryColor;
+in mat4 normalMatrix;
+in mat4 projectionMatrix;
+in mat4 mvpMatrix;
+in mat4 textureMatrix0;
+
+out vec3 surfaceNormal;
+out vec4 vertexPos;
+out vec4 primaryColor;
+out vec4 tc0;
 
 void main()
 {
-	surfaceNormal = gl_NormalMatrix*gl_Normal;
+	surfaceNormal = mat3(normalMatrix)*normal;
 
-	vertexPos = gl_ModelViewMatrix*gl_Vertex;
+	vertexPos = modelViewMatrix*vertex;
 
-	gl_TexCoord[0] = gl_TextureMatrix[0] * gl_MultiTexCoord0;
+	tc0 = textureMatrix0 * texcoord0;
 	
-	primaryColor = gl_Color;
+	primaryColor = color;
 	
-	gl_Position = ftransform();
+	gl_Position = mvpMatrix*vertex;
 
 }
