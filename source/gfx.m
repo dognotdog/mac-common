@@ -7,6 +7,7 @@
 //
 
 #import <OpenGL/gl3.h>
+#import <OpenGL/gl3ext.h>
 
 #import "gfx.h"
 #import "GfxStateStack.h"
@@ -2265,8 +2266,12 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	return self;
 }
 
+static GLint _viewportCache[4];
+
 - (void) setupForRendering
 {
+    
+    glGetIntegerv(GL_VIEWPORT, _viewportCache);
 	glBindFramebuffer(GL_FRAMEBUFFER, [fbo fbo]);
 	
 //	glPushAttrib(GL_VIEWPORT_BIT | GL_SCISSOR_BIT | GL_ALL_ATTRIB_BITS);
@@ -2284,6 +2289,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 - (void) cleanupAfterRendering
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(_viewportCache[0], _viewportCache[1], _viewportCache[2], _viewportCache[3]);
 //	glPopAttrib();
 }
 
@@ -2688,7 +2694,9 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	uint32_t	bitmap[20] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20};
 	glGenTextures(1, &texId);
 	glBindTexture (GL_TEXTURE_2D, texId);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, 4);
+	GLfloat maxAnisotropy = 1.0;
+	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -2858,6 +2866,14 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	return tex;
 }
 
+- (matrix_t) denormalMatrix
+{
+	if (width && height)
+		return mScaleMatrix(vCreateDir(1.0/(double)width, 1.0/(double)height, 1.0));
+	else
+		return mIdentity();
+}
+
 
 - (void) finalize
 {
@@ -2974,7 +2990,9 @@ static BOOL _gfx_isMipmappingSupported = NO;
     if (!textureName)
         glGenTextures (1, &textureName);
 	glBindTexture (GL_TEXTURE_2D, textureName);
-	//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 4);
+	GLfloat maxAnisotropy = 1.0;
+	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	if(doMipmap)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -3077,7 +3095,9 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	{
 		glBindTexture(GL_TEXTURE_2D, textureName);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, border, format, type, pixels);
-		//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_ARB, 4);
+		GLfloat maxAnisotropy = 1.0;
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
