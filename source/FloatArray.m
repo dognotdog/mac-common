@@ -35,7 +35,6 @@
 - (void) dealloc
 {
 	free(floats);
-	[super dealloc];
 }
 
 - (const float*) floats

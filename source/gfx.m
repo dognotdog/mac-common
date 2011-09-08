@@ -55,7 +55,7 @@ static int _extension_supported(const char *extension)
         glGetString(GL_EXTENSIONS));
 }
 */
-GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, size_t numFS)
+GLuint	CreateShader(const char** vshaders, GLsizei numVS, const char** fshaders, GLsizei numFS)
 {
 /*
     if (!_extension_supported("GL_ARB_shader_objects") ||
@@ -293,7 +293,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	const char** vtext = calloc(sizeof(*vtext), [vsa count]);
 	const char** ftext = calloc(sizeof(*ftext), [fsa count]);
 	
-	size_t vi = 0, fi = 0;
+	GLsizei vi = 0, fi = 0;
 	
 	vertexShaderSource = [vsa componentsJoinedByString: @""];
 	fragmentShaderSource = [fsa componentsJoinedByString: @""];
@@ -775,7 +775,7 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 	[batches addObject: [GLMesh_batch batchStarting: offset count: count mode: mode]];
 }
 
-- (void) addDrawArrayIndices: (NSArray*) array withOffset: (size_t) valueOffset withMode: (unsigned int) mode
+- (void) addDrawArrayIndices: (NSArray*) array withOffset: (uint32_t) valueOffset withMode: (unsigned int) mode
 {
 	size_t count = [array count];
 	assert(count);
@@ -1171,6 +1171,16 @@ GLuint	CreateShader(const char** vshaders, size_t numVS, const char** fshaders, 
 
 	[self cleanupArrays];
 }
+
+- (void) drawBatch: (GLMesh_batch*) batch
+{
+	[self setupArrays];
+	
+        glDrawElements([batch drawMode], [batch count], GL_UNSIGNED_INT, NULL+sizeof(*indices)*[batch begin]);
+	
+	[self cleanupArrays];
+}
+
 
 
 - (void) justDraw

@@ -35,7 +35,6 @@ static	float dot3(const float g[], const float x, const float y, const float z)
 - (void) dealloc
 {
 	free(perm - 256);
-	[super dealloc];
 }
 - (void) finalize
 {
@@ -45,7 +44,7 @@ static	float dot3(const float g[], const float x, const float y, const float z)
 
 - (void) setSeed: (uint32_t) seed
 {
-	MersenneTwister* rgen = [[[MersenneTwister alloc] initWithSeed: seed] autorelease];
+	MersenneTwister* rgen = [[MersenneTwister alloc] initWithSeed: seed];
 	if (perm)
 		free(perm-256);
 		

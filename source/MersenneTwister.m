@@ -130,7 +130,6 @@ void MTwisterCRefill(int mti, unsigned int* mt)
 - (void) dealloc
 {
 	free(mt);
-	[super dealloc];
 }
 
 - (void) finalize

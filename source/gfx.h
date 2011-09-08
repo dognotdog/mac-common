@@ -77,7 +77,7 @@ void	_LogGLError(NSString* str);
 - (void) addTexCoords: (NSArray*) v;
 
 - (void) addDrawArrayIndices: (NSArray*) indices withMode: (unsigned int) mode;
-- (void) addDrawArrayIndices: (NSArray*) indices withOffset: (size_t) offset withMode: (unsigned int) mode;
+- (void) addDrawArrayIndices: (NSArray*) indices withOffset: (uint32_t) offset withMode: (unsigned int) mode;
 - (void) addDrawArrayIndices: (uint32_t*) array count: (size_t) count withMode: (unsigned int) mode;
 
 - (void) addIndices: (uint32_t*) v count: (size_t) c offset: (size_t) offset;
@@ -88,6 +88,7 @@ void	_LogGLError(NSString* str);
 - (void) addBatch: (GLMesh_batch*) batch;
 
 - (void) justDraw;
+- (void) drawBatch: (GLMesh_batch*) batch;
 
 - (void) changeAllBatchesToTrianglesWithSmoothing: (BOOL) shouldSmooth;
 - (void) generateNormalsIfMissing;
@@ -369,7 +370,7 @@ void glUniformVector4(GLint uloc, vector_t v);
 	GLuint*			fbos;
 	GLuint*			rbos;
 	GLuint*			programs;
-	size_t		numVaos, numVbos, numFbos, numRbos, numTextures, numPrograms;
+	GLsizei			numVaos, numVbos, numFbos, numRbos, numTextures, numPrograms;
 }
 
 + (void) disposeOfResourcesWithTypes: (size_t) rsrc, ...;

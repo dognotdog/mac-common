@@ -574,8 +574,8 @@ size_t MeshOctree_meshSphereIntersect(MeshOctree* self, vector_t C, double radiu
 	vector_t R3 = vCreateDir(radius,radius,radius);
 	range3d_t sr = rCreateFromMinMax(v3Sub(C, R3), v3Add(C, R3));
 	
-	*hits = malloc(0);
-	*normals = malloc(0);
+	*hits = NULL;
+	*normals = NULL;
 	size_t numHits = 0;
 
 	OctreeNode_meshSphereIntersect(self->baseNode, C, radius, sr, self->vertices, hits, normals, &numHits);
