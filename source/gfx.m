@@ -3054,10 +3054,11 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	GLenum format;
 	GLenum type;
 	void *pixels;
+	BOOL compressionEnabled;
 	BOOL isDirty;
 }
 
-@synthesize internalFormat, border, format, type, pixels, isDirty;
+@synthesize internalFormat, border, format, type, pixels, isDirty, compressionEnabled;
 
 - (id) initWithName: (NSString*) aName
 {
@@ -3104,7 +3105,7 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	if (isDirty)
 	{
 		glBindTexture(GL_TEXTURE_2D, textureName);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, border, format, type, pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, (compressionEnabled ? GL_COMPRESSED_RGBA_S3TC_DXT3_EXT : GL_RGBA), width, height, border, format, type, pixels);
 		GLfloat maxAnisotropy = 1.0;
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
@@ -3142,6 +3143,12 @@ static BOOL _gfx_isMipmappingSupported = NO;
 - (void) setHeight:(GLsizei)x
 {
 	height = x;
+	isDirty = YES;
+}
+
+- (void) setCompressionEnabled:(BOOL)x
+{
+	compressionEnabled = x;
 	isDirty = YES;
 }
 

@@ -234,6 +234,7 @@ void glUniformVector4(GLint uloc, vector_t v);
 @property(nonatomic) GLenum format;
 @property(nonatomic) GLenum type;
 @property(nonatomic) void* pixels;
+@property(nonatomic) BOOL compressionEnabled;
 @property(nonatomic, readonly) BOOL isDirty;
 @property(nonatomic) GLsizei width;
 @property(nonatomic) GLsizei height;
