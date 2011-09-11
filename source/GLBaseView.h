@@ -8,25 +8,31 @@
 
 #import <Cocoa/Cocoa.h>
 
-#import <OpenGL/OpenGL.h>
-#import <CoreVideo/CoreVideo.h>
+// forward declare display link so we don't have to include <CoreVideo.h>, which idiotically forces inclusion of <gl.h>
+struct __CVDisplayLink;
+typedef struct __CVDisplayLink *CVDisplayLinkRef;
 
-
-@class GLSLShader, GLString;
+@class NSOpenGLContext, GLSLShader, GLString, GLDrawableBuffer;
 
 @interface GLBaseView : NSView
 {
 	NSOpenGLContext*	openGLContext;
 	CVDisplayLinkRef	displayLink;
 	
+	GLDrawableBuffer* drawableBuffer;
+	
 	GLSLShader*	simpleShader;
 	
 	GLString*	statusString;
+	
+	BOOL	captureMouseEnabled;
 }
 
 - (void) setupView;
 - (void) drawForTime: (const CVTimeStamp*) outputTime;
 
-@property(retain) NSOpenGLContext* openGLContext;
+@property(nonatomic, strong) GLDrawableBuffer* drawableBuffer;
+@property(nonatomic, strong) NSOpenGLContext* openGLContext;
+@property(nonatomic) BOOL captureMouseEnabled;
 
 @end

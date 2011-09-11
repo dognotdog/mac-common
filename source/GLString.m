@@ -32,7 +32,7 @@
 - (void) finalize
 {
 	if (texName)
-		[GLResourceDisposal disposeOfResourcesWithTypes: texName, GFX_RESOURCE_TEXTURE, NULL];
+		[GfxResourceDisposal disposeOfResourcesWithTypes: texName, GFX_RESOURCE_TEXTURE, NULL];
 
 	[super finalize];
 }

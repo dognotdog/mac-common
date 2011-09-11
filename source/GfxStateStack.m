@@ -30,7 +30,7 @@
 	BOOL blendingEnabled;
 	GLuint blendingSrcMode, blendingDstMode;
 
-	GLTexture* textures[NUM_TEXTURE_UNITS];
+	GfxTexture* textures[NUM_TEXTURE_UNITS];
 	
 	
 	
@@ -174,7 +174,7 @@
 	for (int i = 0; i < NUM_TEXTURE_UNITS; ++i)
 		if (shaderChanged || FLAGCHANGED(textureFlags[i]))
 		{
-			GLTexture* texture = textures[i];
+			GfxTexture* texture = textures[i];
 			if (texture)
 				[texture bindTextureAt: i];
 			else
@@ -283,7 +283,7 @@
 	textureFlags[index] |= GSS_FLAG_SET;
 }
 
-- (void) setTexture:(GLTexture*) texture atIndex:(NSUInteger)index
+- (void) setTexture:(GfxTexture*) texture atIndex:(NSUInteger)index
 {
     assert(index < NUM_TEXTURE_UNITS);
 	textures[index] = texture;

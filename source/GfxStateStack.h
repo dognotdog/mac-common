@@ -10,7 +10,7 @@
 
 #import "VectorMath.h"
 
-@class GLSLShader, GLTexture;
+@class GLSLShader, GfxTexture;
 
 @interface GfxStateStack : NSObject
 
@@ -21,7 +21,7 @@
 
 @property(nonatomic, strong) GLSLShader* shader;
 
-- (void) setTexture: (GLTexture*) texture atIndex: (NSUInteger) index;
+- (void) setTexture: (GfxTexture*) texture atIndex: (NSUInteger) index;
 - (void) setTextureMatrix: (matrix_t) m atIndex: (NSUInteger) index;
 
 - (void) setIntegerUniform: (GLint) val named: (NSString*) name;

@@ -11,6 +11,9 @@
 #import "VectorMath.h"
 #import "MeshOctree.h"
 
+#import "GfxTexture.h"
+
+
 #define NSPrettyLog(...) NSLog(@"%s: %@", __PRETTY_FUNCTION__, [NSString stringWithFormat: __VA_ARGS__])
 #define LogGLError(x) _LogGLError([NSString stringWithFormat: @"%s: %@", __PRETTY_FUNCTION__, x]);
 void	_LogGLError(NSString* str);
@@ -30,9 +33,9 @@ void	_LogGLError(NSString* str);
 #define GFX_RESOURCE_RBO		4
 #define GFX_RESOURCE_FBO		5
 
-@class TransformNode, GLTexture, GLMesh_batch, GfxStateStack;
+@class TransformNode, GfxTexture, GfxMesh_batch, GfxStateStack;
 
-@interface GLMesh : NSObject
+@interface GfxMesh : NSObject
 {
 	matrix_t	mObject;
 	
@@ -52,7 +55,7 @@ void	_LogGLError(NSString* str);
 	
 	TransformNode*	transform;
 	matrix_t		textureMatrix;
-	GLTexture*		texture;
+	GfxTexture*		texture;
     
     NSRange dirtyVertices, dirtyNormals, dirtyTexCoords, dirtyColors, dirtyIndices;
     GLuint  usageHint;
@@ -84,32 +87,32 @@ void	_LogGLError(NSString* str);
 
 - (void) updateVertices: (vector_t*) v inRange: (NSRange) r;
 
-- (void) appendMesh: (GLMesh*) mesh;
-- (void) addBatch: (GLMesh_batch*) batch;
+- (void) appendMesh: (GfxMesh*) mesh;
+- (void) addBatch: (GfxMesh_batch*) batch;
 
 - (void) justDraw;
-- (void) drawBatch: (GLMesh_batch*) batch;
+- (void) drawBatch: (GfxMesh_batch*) batch;
 
 - (void) changeAllBatchesToTrianglesWithSmoothing: (BOOL) shouldSmooth;
 - (void) generateNormalsIfMissing;
 
 - (void) addTrianglesToOctree: (MeshOctree*) octree;
 
-+ (GLMesh*) cubeLineMesh;
-+ (GLMesh*) cubeMesh;
-+ (GLMesh*) cylinderMesh;
-+ (GLMesh*) lineRingMesh;
-+ (GLMesh*) lineMesh;
-+ (GLMesh*) diskMesh;
-+ (GLMesh*) quadMesh;
-+ (GLMesh*) hiResSphereMesh;
-+ (GLMesh*) sphereMesh;
-+ (GLMesh*) sphereMeshPosHemi;
-+ (GLMesh*) sphereMeshNegHemi;
++ (GfxMesh*) cubeLineMesh;
++ (GfxMesh*) cubeMesh;
++ (GfxMesh*) cylinderMesh;
++ (GfxMesh*) lineRingMesh;
++ (GfxMesh*) lineMesh;
++ (GfxMesh*) diskMesh;
++ (GfxMesh*) quadMesh;
++ (GfxMesh*) hiResSphereMesh;
++ (GfxMesh*) sphereMesh;
++ (GfxMesh*) sphereMeshPosHemi;
++ (GfxMesh*) sphereMeshNegHemi;
 
 @property SEL drawSelector;
 @property(retain) TransformNode* transform;
-@property(retain) GLTexture* texture;
+@property(retain) GfxTexture* texture;
 @property matrix_t textureMatrix;
 
 @property(readonly) vector_t* texCoords;
@@ -180,7 +183,7 @@ void glUniformVector4(GLint uloc, vector_t v);
 @interface ShadowMap : NSObject
 {
 //	matrix_t			lightProjectionMatrix;
-	GLTexture*			shadowTexture;
+	GfxTexture*			shadowTexture;
 //	GLuint				shadowTexture;
 	int					width, height;
 	FramebufferObject*	fbo;
@@ -194,91 +197,9 @@ void glUniformVector4(GLint uloc, vector_t v);
 - (void) visualizeShadowMapWithState: (GfxStateStack*) gfxState;
 - (void) bindShadowTexture;
 
-@property(nonatomic, readonly) GLTexture* shadowTexture;
+@property(nonatomic, readonly) GfxTexture* shadowTexture;
 //@property(readonly) GLSLShader* shader;
 //@property			matrix_t	lightProjectionMatrix;
-
-@end
-
-@interface GLTexture : NSObject
-{
-	GLuint		textureName;
-	GLsizei		width, height;
-	NSString*	name;
-}
-
-+ (id) textureNamed: (NSString*) name;
-+ (id) existingTextureNamed: (NSString*) name;
-+ (id) createPreBoundTextureWithId: (GLuint) tid named: (NSString*) name;
-
-+ (BOOL) isMipMappingSupported;
-
-- (void) bindTexture;
-- (void) bindTextureAt: (GLuint) num;
-+ (void) bindDefaultTextureAt: (GLuint) num;
-- (void) genTextureId;
-- (matrix_t) denormalMatrix;
-- (void) setTextureParameter: (GLenum) param toInt: (GLint) val;
-
-@property(nonatomic, readonly) GLuint textureName;
-@property(nonatomic, readonly) GLsizei width;
-@property(nonatomic, readonly) GLsizei height;
-@property(nonatomic, readonly, copy) NSString* name;
-
-@end
-
-@interface GLDataTexture : GLTexture
-
-@property(nonatomic) GLint internalFormat;
-@property(nonatomic) GLint border;
-@property(nonatomic) GLenum format;
-@property(nonatomic) GLenum type;
-@property(nonatomic) void* pixels;
-@property(nonatomic) BOOL compressionEnabled;
-@property(nonatomic, readonly) BOOL isDirty;
-@property(nonatomic) GLsizei width;
-@property(nonatomic) GLsizei height;
-
-+ (id) textureNamed: (NSString*) name;
-
-
-@end
-
-
-@interface GLImageTexture : GLTexture
-{
-	NSImage*	image;
-}
-
-- (id) initWithImageNamed: (NSString*) fileName;
-- (id) initWithImage: (NSImage*) img;
-
-@property(nonatomic, readonly, strong) id image;
-
-@end
-
-@interface LightmapTexture : GLTexture
-{
-	size_t sourceWidth, sourceHeight;
-	int xmin, xmax, ymin, ymax;
-	double xrot, yrot;
-	double xdiv, ydiv;
-	float minValue, maxValue;
-	float* sourceTexels;
-	float* linearTexels;
-	
-	GLSLShader* vizShader;
-}
-
-- (double) aspectRatio;
-- (double) verticalFOV;
-
-- (id) initWithLightmapNamed: (NSString*) fileName filter: (BOOL) doFilter;
-
-- (void) visualizeLightMapWithState: (GfxStateStack*) gfxState;
-
-@property(nonatomic,readonly) double xrot;
-@property(nonatomic,readonly) double yrot;
 
 @end
 
@@ -300,13 +221,13 @@ void glUniformVector4(GLint uloc, vector_t v);
 @interface SimpleMaterialNode : NSObject
 {
 	vector_t diffuseColor;
-	GLTexture* texture;
+	GfxTexture* texture;
 	matrix_t textureMatrix;
 }
 
 @property(nonatomic) vector_t diffuseColor;
 @property(nonatomic) matrix_t textureMatrix;
-@property(nonatomic, strong) GLTexture* texture;
+@property(nonatomic, strong) GfxTexture* texture;
 
 @end
 
@@ -347,7 +268,7 @@ void glUniformVector4(GLint uloc, vector_t v);
 
 @end
 
-@interface GLMesh_batch : NSObject
+@interface GfxMesh_batch : NSObject
 {
 	size_t		begin, count;
 	unsigned	drawMode;
@@ -362,7 +283,7 @@ void glUniformVector4(GLint uloc, vector_t v);
 
 
 
-@interface GLResourceDisposal : NSObject
+@interface GfxResourceDisposal : NSObject
 {
 	NSRecursiveLock* 	lock;
 	GLuint*			vaos;

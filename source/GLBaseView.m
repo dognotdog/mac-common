@@ -10,11 +10,15 @@
 
 #import "gfx.h"
 #import "GLString.h"
+#import "GLDrawableBuffer.h"
 
 #import <Carbon/Carbon.h>
+#import <OpenGL/gl3.h>
+#import <CoreVideo/CoreVideo.h>
 
-static	NSOpenGLPixelFormatAttribute _formatAttribs[] = 
-{NSOpenGLPFAAccelerated,
+static	NSOpenGLPixelFormatAttribute _formatAttribs[] = {
+	NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
+	NSOpenGLPFAAccelerated,
 	NSOpenGLPFADoubleBuffer,
 	NSOpenGLPFADepthSize, 24,
 	NSOpenGLPFAAlphaSize, 8,
@@ -30,9 +34,13 @@ static	NSOpenGLPixelFormatAttribute _formatAttribs[] =
 - (void) setOpenGLontext: (id) context;
 - (void) drawFrame;
 - (void) reshape;
+- (CVReturn) getFrameForTime: (const CVTimeStamp*) time;
+
 @end
 
 @implementation GLBaseView
+
+@synthesize openGLContext, captureMouseEnabled, drawableBuffer;
 
 - (void) setFrame: (NSRect) frame
 {
@@ -43,7 +51,8 @@ static	NSOpenGLPixelFormatAttribute _formatAttribs[] =
 
 static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp* now, const CVTimeStamp* outputTime, CVOptionFlags flagsIn, CVOptionFlags* flagsOut, void* displayLinkContext)
 {
-    CVReturn result = [(GLBaseView*)displayLinkContext getFrameForTime: outputTime];
+	id self = (__bridge GLBaseView*)displayLinkContext;
+    CVReturn result = [self getFrameForTime: outputTime];
     return result;
 }
 
@@ -56,14 +65,12 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	fmt = [[NSOpenGLPixelFormat alloc] initWithAttributes: _formatAttribs];
 	
 	self = [super initWithFrame:frame];
-	NSOpenGLContext* context = [[[NSOpenGLContext alloc] initWithFormat: fmt shareContext: nil] autorelease];
+	NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat: fmt shareContext: nil];
 	
 	CGLLockContext([context CGLContextObj]);
 	
 	[self setOpenGLContext: context];
-	
-	[fmt release];
-	
+		
 	
 	
 	GLint opacity = 1;
@@ -74,7 +81,7 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
     CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
 	
     // Set the renderer output callback function
-    CVDisplayLinkSetOutputCallback(displayLink, &_displayLinkCallback, self);
+    CVDisplayLinkSetOutputCallback(displayLink, &_displayLinkCallback, (__bridge void*)self);
 	
     // Set the display link for the current renderer
     CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
@@ -151,133 +158,29 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
  }
  */
 
-- (void) drawWorld: (ProxyQWorld*) world inFrustum: (matrix_t) CF
-{
-	NSSize vs = [self bounds].size;
-	matrix_t projMatrix = mPerspective(80.0/180.0*M_PI, vs.width/vs.height, 0.1, 500.0);
-	
-	PlayerState ps = world.playerState;
-	
-	v3i_t playerChunkOffset;
-	vector_t playerLocalPos;
-	
-	QPlayerPosToChunkLocal(ps.pos, &playerChunkOffset, &playerLocalPos);
-	
-	vector_t playerHead = vCreatePos(playerLocalPos.farr[0], playerLocalPos.farr[1], playerLocalPos.farr[2] + 3.5);
-	
-	camLookAt = playerHead;
-	
-	vector_t camPos = vCreatePos(0.0, -camDistance, 0.0);
-	
-	// screen X,Y,-Z = right, up, forward
-	// world X,Z,Y = right,up,forward
-	vector_t right		= vCreateDir(1.0,0.0,0.0);
-	vector_t up			= vCreateDir(0.0,0.0,-1.0);
-	vector_t forward	= vCreateDir(0.0,1.0,0.0);
-	matrix_t finalR = mCreateFromBases(right, up, forward);
-	
-	matrix_t camLookAtTranslationMatrix = mTranslationMatrix(vNegate(camLookAt));
-	
-	
-	matrix_t camR = mTransform(mRotationMatrixAxisAngle(vCreateDir(1.0,0.0,0.0), -camPitch), mRotationMatrixAxisAngle(vCreateDir(0.0,0.0,1.0), -camHeading));
-	
-	
-	matrix_t mvMatrix = mTransform(finalR, mTransform(mTranslationMatrix(vNegate(camPos)), mTransform(camR,camLookAtTranslationMatrix)));
-	
-	
-	matrix_t feetM = mTransform(mTranslationMatrix(vCreatePos(playerLocalPos.farr[0], playerLocalPos.farr[1], playerLocalPos.farr[2] + 0.5)), mScaleMatrixUniform(0.5));
-	matrix_t headM = mTransform(mTranslationMatrix(vCreatePos(playerLocalPos.farr[0], playerLocalPos.farr[1], playerLocalPos.farr[2] + 3.5)), mScaleMatrixUniform(0.5));
-	
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	
-	float lpos[4] = {0.0,0.0,0.0,1.0};
-	float diff[4] = {0.0,0.0,0.0,0.0};
-	glLightfv(GL_LIGHT0, GL_POSITION, lpos);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, diff);
-	glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.002/sqrt(camDistance));	
-	
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrix(projMatrix);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrix(mvMatrix);
-	
-	
-	
-	
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glDisable(GL_LIGHTING);
-	glColor4d(1.0,0.0,0.0, 1.0);
-	glDisable(GL_CULL_FACE);
-	
-	glLoadMatrix(mTransform(mvMatrix, feetM));
-	
-	[[GLMesh cubeMesh] justDraw];
-	
-	glEnable(GL_CULL_FACE);
-	glLoadMatrix(mTransform(mvMatrix, headM));
-	
-	[[GLMesh sphereMesh] justDraw];
-	
-	glColor4d(1.0,1.0,1.0, 1.0);
-	
-	glEnable(GL_DEPTH_TEST);
-	glDepthMask(GL_TRUE);
-	glDepthFunc(GL_LEQUAL);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	
-	glEnable(GL_CULL_FACE);
-	
-	for (FrontendChunk* chunk in [world chunks])
-	{
-		v3i_t offset = chunk.chunkOffset;
-		int i = offset.x, j = offset.y, k = offset.z;
-		
-		matrix_t CM = mTranslationMatrix(vCreateDir((i-playerChunkOffset.x)*CHUNK_SIZE_NB, (j-playerChunkOffset.y)*CHUNK_SIZE_NB, (k-playerChunkOffset.z)*CHUNK_SIZE_NB));
-		
-		glLoadMatrix(mTransform(mvMatrix, CM));
-		
-		glDisable(GL_LIGHTING);
-		//		glColor4d(1.0,1.0,1.0, 1.0);
-		//		[[chunk outlineMesh] justDraw];
-		//		[[chunk lightMesh] justDraw];
-		
-		
-		
-		//		glEnable(GL_LIGHTING);
-		glEnable(GL_LIGHT0);
-		
-		[[chunk rockMesh] justDraw];
-	}
-}
 
-- (void) drawHUD
-{
-	NSSize size = [self bounds].size;
-	matrix_t projMatrix = mOrtho(vCreateDir(0.0,0.0,-1.0), vCreateDir(size.width, size.height, 1.0));
-	
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrix(projMatrix);
-	
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	
-	glColor4d(1.0,1.0,1.0,1.0);
-	
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_DEPTH_TEST);
-	
-	[statusString setString: [NSString stringWithFormat: @"chunkUpdateLoadCounter: %d", theWorld.chunkUpdateLoadCounter]];
-	
-	[statusString drawAtPoint: NSMakePoint(1.0,1.0)];
-	
-}
+
 
 - (void) drawRect: (NSRect) rect
 {
 	return;
+}
+
+- (void) setupView
+{
+	NSLog(@"-setupView is expected to be implemented by subclasses.");
+	[self doesNotRecognizeSelector: _cmd];
+}
+
+- (void) drawForTime:(const CVTimeStamp *)outputTime
+{
+	/*
+	NSLog(@"-drawForTime: is expected to be implemented by subclasses.");
+	[self doesNotRecognizeSelector: _cmd];
+	 */
+	
+	[drawableBuffer applyUpdates];
+	
 }
 
 - (CVReturn) getFrameForTime: (const CVTimeStamp*) outputTime
@@ -300,10 +203,7 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	
 	
 	glColor4f(1.0f,1.0f,1.0f,1.0f);
-	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_LIGHTING);
-	glEnable(GL_COLOR_MATERIAL);
-	
+
 	glFrontFace(GL_CCW);
 	glCullFace(GL_BACK);
 	glDisable(GL_CULL_FACE);
@@ -314,110 +214,14 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	
 	[[self openGLContext] flushBuffer];
 	
-	[GLResourceDisposal performDisposal];
+	[GfxResourceDisposal performDisposal];
 	
 	CGLUnlockContext(CGLGetCurrentContext());
 	
 	return kCVReturnSuccess;
 }
-/*
- - (void) setOpenGLontext: (id) context
- {
- [openGLContext clearDrawable];
- 
- openGLContext = context;
- //	[openGLContext setView: self];
- //	[openGLContext update];
- 
- }
- */
 
-- (void) zoomView: (float) factor
-{
-	camDistance = MAX(1.0, camDistance*factor);
-	//	[self setNeedsDisplay: YES];
-}
 
-- (void) sendPlayerCommands
-{
-	vector_t mdir = vZero();
-	
-	if (inputState.moveLeft)
-		mdir = v3Add(mdir, vCreateDir(-1.0, 0.0, 0.0));
-	if (inputState.moveRight)
-		mdir = v3Add(mdir, vCreateDir( 1.0, 0.0, 0.0));
-	if (inputState.moveForward)
-		mdir = v3Add(mdir, vCreateDir( 0.0, 1.0, 0.0));
-	if (inputState.moveBackward)
-		mdir = v3Add(mdir, vCreateDir( 0.0,-1.0, 0.0));
-	
-	
-	vector_t forward = vCreateDir(-sin(camHeading), cos(camHeading), 0.0);
-	
-	vector_t up = vCreateDir(0.0,0.0,1.0);
-	
-	vector_t right = vCross(forward, up);
-	
-	matrix_t R = mCreateFromBases(right, forward, up);
-	
-	vector_t direction = mTransformDir(R, mdir);
-	
-	//	NSLog(@"heading = %f", camHeading*180.0/M_PI);
-	//	NSLog(@"mdir = %f, %f", mdir.farr[0], mdir.farr[1]);
-	//	NSLog(@"direction = %f, %f", direction.farr[0], direction.farr[1]);
-	
-	QWorldPlayerCommand* cmd = nil;
-	
-	if ((inputState.moveLeft ^ inputState.moveRight) || (inputState.moveForward ^ inputState.moveBackward))
-	{
-		cmd = [[[QWorldPlayerCommand alloc] initWithCommand: QP_START_RUNNING direction: direction] autorelease];
-	}
-	else
-	{
-		cmd = [[[QWorldPlayerCommand alloc] initWithCommand: QP_STOP_MOVING direction: forward] autorelease];
-	}
-	
-	[theWorld commandPlayer: cmd];
-	
-	if (inputState.jump)
-	{
-		inputState.jump = 0;
-		[theWorld commandPlayer: [[[QWorldPlayerCommand alloc] autorelease] initWithCommand: QP_JUMP direction: vZero()]];
-	}
-	
-	if (inputState.statusCheck)
-	{
-		inputState.statusCheck = 0;
-		[theWorld commandPlayer: [[[QWorldPlayerCommand alloc] autorelease] initWithCommand: QP_STATUS_CHECK direction: vZero()]];
-	}
-	
-}
-
-- (void) mouseMoved: (NSEvent*) event
-{
-	float dx = [event deltaX];
-	float dy = [event deltaY];
-	
-	{
-		camHeading -= dx * 0.01;
-		camPitch -= dy * 0.01;
-		[self sendPlayerCommands];
-	}
-	
-	//	[self setNeedsDisplay: YES];
-	
-}
-
-- (void) scrollWheel: (NSEvent*) event
-{
-	//	float dx = [event deltaX];
-	float dy = [event deltaY];
-	
-	[self zoomView: (1.0 - dy/100.0)];
-	
-	//	[self setNeedsDisplay: YES];
-	
-}
 
 - (BOOL) acceptsFirstResponder
 {
@@ -425,85 +229,6 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 }
 
 
-- (void) keyUp: (NSEvent*) theEvent
-{
-	unsigned kc = [theEvent keyCode];
-	
-	//	NSUInteger flags = [theEvent modifierFlags] & (NSAlphaShiftKeyMask|NSShiftKeyMask|NSControlKeyMask|NSAlternateKeyMask|NSCommandKeyMask);
-	
-	switch (kc)
-	{
-		case kVK_ANSI_A:
-			inputState.moveLeft = 0;
-			break;
-		case kVK_ANSI_D:
-			inputState.moveRight = 0;
-			break;
-		case kVK_ANSI_W:
-			inputState.moveForward = 0;
-			break;
-		case kVK_ANSI_S:
-			inputState.moveBackward = 0;
-			break;
-	}
-	
-	[self sendPlayerCommands];
-}
-
-- (void) keyDown: (NSEvent*) theEvent
-{
-	if ([theEvent isARepeat])
-		return;
-	
-	unsigned kc = [theEvent keyCode];
-	
-	NSUInteger flags = [theEvent modifierFlags] & (NSAlphaShiftKeyMask|NSShiftKeyMask|NSControlKeyMask|NSAlternateKeyMask|NSCommandKeyMask);
-	
-	//NSLog(@"kc = %4X, flags = %8x", kc, flags);
-	switch (flags)
-	{
-		case 0: // no modifiers pressed
-			switch(kc)
-		{
-			case kVK_ANSI_A:
-				inputState.moveLeft = 1;
-				break;
-			case kVK_ANSI_D:
-				inputState.moveRight = 1;
-				break;
-			case kVK_ANSI_W:
-				inputState.moveForward = 1;
-				break;
-			case kVK_ANSI_S:
-				inputState.moveBackward = 1;
-				break;
-			case kVK_Space:
-				NSLog(@"hulk jump");
-				inputState.jump = 1;
-				break;
-			case kVK_ANSI_Q:
-				NSLog(@"hulk check");
-				inputState.statusCheck = 1;
-				break;
-			case 0x1E:
-				[self zoomView: 0.8];
-				break;
-			case 0x2C:
-				[self zoomView: 1.2];
-				break;
-		}
-			break;
-	}
-	/*
-	 if ([theEvent modifierFlags] & NSNumericPadKeyMask)
-	 {
-	 [self interpretKeyEvents: [NSArray arrayWithObject: theEvent]];
-	 } else {
-	 [super keyDown: theEvent];
-	 }
-	 */
-	[self sendPlayerCommands];
-}
 
 - (CGPoint)centerOnScreen
 {
@@ -547,21 +272,23 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 
 - (void)windowDidResize:(NSNotification *)notification
 {
-	if ([[self window] isMainWindow])
+	if ([[self window] isMainWindow] && captureMouseEnabled)
 		[self captureMouse];
 }
 - (void)windowDidMove:(NSNotification *)notification
 {
-	if ([[self window] isMainWindow])
+	if ([[self window] isMainWindow] && captureMouseEnabled)
 		[self captureMouse];
 }
 - (void)windowDidBecomeMain:(NSNotification *)notification
 {
-	[self captureMouse];
+	if (captureMouseEnabled)
+		[self captureMouse];
 }
 - (void)windowDidResignMain:(NSNotification *)notification
 {
-	[self releaseMouse];
+	if (captureMouseEnabled)
+		[self releaseMouse];
 }
 /*
  - (void)windowWillClose:(NSNotification *)notification
@@ -582,7 +309,7 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 {
 	[openGLContext clearDrawable];
 	
-	openGLContext = [context retain];
+	openGLContext = context;
 	//	[openGLContext setView: self];
 	//	[openGLContext update];
 	
@@ -610,6 +337,5 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	CGLUnlockContext([context CGLContextObj]);
 }
 
-@synthesize openGLContext;
 
 @end
