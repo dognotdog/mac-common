@@ -21,9 +21,21 @@ const char* vectorMathNumberFormat = "f";
 	return [NSValue valueWithBytes: &v objCType: @encode(vector_t)];
 }
 
++ (id) valueWithMatrix: (matrix_t) v
+{
+	return [NSValue valueWithBytes: &v objCType: @encode(matrix_t)];
+}
+
 - (vector_t) vectorValue
 {
 	vector_t r = vZero();
+	[self getValue: &r];
+	return r;
+}
+
+- (matrix_t) matrixValue
+{
+	matrix_t r = mIdentity();
 	[self getValue: &r];
 	return r;
 }

@@ -3,7 +3,7 @@
 //  TrackSim
 //
 //  Created by Dömötör Gulyás on 11.9.11.
-//  Copyright (c) 2011 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2011 Dömötör Gulyás. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>
@@ -11,7 +11,7 @@
 #import "VectorMath.h"
 #import <OpenGL/gl3.h>
 
-@class GLSLShader, GfxStateStack;
+@class GfxShader, GfxStateStack;
 
 @interface GfxTexture : NSObject
 {
@@ -80,7 +80,7 @@
 	float* sourceTexels;
 	float* linearTexels;
 	
-	GLSLShader* vizShader;
+	GfxShader* vizShader;
 }
 
 - (double) aspectRatio;

@@ -1164,6 +1164,8 @@ static inline void glNormal(vector_t v)
 @interface NSValue (VectorMath)
 - (vector_t) vectorValue;
 + (id) valueWithVector: (vector_t) v;
+- (matrix_t) matrixValue;
++ (id) valueWithMatrix: (matrix_t) v;
 @end
 
 @interface NSCoder (VectorMath)

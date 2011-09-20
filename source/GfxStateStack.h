@@ -10,7 +10,7 @@
 
 #import "VectorMath.h"
 
-@class GLSLShader, GfxTexture;
+@class GfxShader, GfxTexture, GfxFramebufferObject;
 
 @interface GfxStateStack : NSObject
 
@@ -19,7 +19,7 @@
 
 - (void) submitState;
 
-@property(nonatomic, strong) GLSLShader* shader;
+@property(nonatomic, strong) GfxShader* shader;
 
 - (void) setTexture: (GfxTexture*) texture atIndex: (NSUInteger) index;
 - (void) setTextureMatrix: (matrix_t) m atIndex: (NSUInteger) index;
@@ -39,5 +39,6 @@
 @property(nonatomic) BOOL blendingEnabled;
 @property(nonatomic) GLuint blendingSrcMode;
 @property(nonatomic) GLuint blendingDstMode;
+@property(nonatomic,retain) GfxFramebufferObject* framebuffer;
 
 @end

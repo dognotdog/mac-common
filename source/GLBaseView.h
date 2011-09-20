@@ -3,7 +3,7 @@
 //  colorspace
 //
 //  Created by Dömötör Gulyás on 23.06.2011.
-//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//  Copyright 2011 Dömötör Gulyás. All rights reserved.
 //
 
 #import <Cocoa/Cocoa.h>
@@ -12,7 +12,7 @@
 struct __CVDisplayLink;
 typedef struct __CVDisplayLink *CVDisplayLinkRef;
 
-@class NSOpenGLContext, GLSLShader, GLString, GLDrawableBuffer;
+@class NSOpenGLContext, GfxShader, GLString, GLDrawableBuffer;
 
 @interface GLBaseView : NSView
 {
@@ -21,12 +21,18 @@ typedef struct __CVDisplayLink *CVDisplayLinkRef;
 	
 	GLDrawableBuffer* drawableBuffer;
 	
-	GLSLShader*	simpleShader;
+//	GfxShader*	simpleShader;
 	
 	GLString*	statusString;
 	
 	BOOL	captureMouseEnabled;
+	
+	unsigned long	frameCount;
 }
+
+- (void) update;
+
+- (void) reshape;
 
 - (void) setupView;
 - (void) drawForTime: (const CVTimeStamp*) outputTime;
@@ -34,5 +40,6 @@ typedef struct __CVDisplayLink *CVDisplayLinkRef;
 @property(nonatomic, strong) GLDrawableBuffer* drawableBuffer;
 @property(nonatomic, strong) NSOpenGLContext* openGLContext;
 @property(nonatomic) BOOL captureMouseEnabled;
+@property(nonatomic) unsigned long frameCount;
 
 @end

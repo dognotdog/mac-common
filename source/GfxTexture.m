@@ -3,12 +3,13 @@
 //  TrackSim
 //
 //  Created by Dömötör Gulyás on 11.9.11.
-//  Copyright (c) 2011 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2011 Dömötör Gulyás. All rights reserved.
 //
 
 #import "GfxTexture.h"
 
 #import "GfxStateStack.h"
+#import "GfxShader.h"
 #import "gfx.h"
 
 #import <OpenGL/gl3ext.h>
@@ -18,6 +19,23 @@
 struct lrec { int lo, hi; double t; };
 
 
+- (void) fadeToEdges
+{
+	for (int j = 0; j < height; ++j)
+	{
+		float y = j/(double)height;
+		float yf = (y < 0.2f ? 5.0f*y : (y >= 0.8f ? 5.0f*(1.0f-y) : 1.0f));
+		for (int i = 0; i < width; ++i)
+		{
+			float x = i/(double)width;
+			
+			float xf = (x < 0.2f ? 5.0f*x : (x >= 0.8f ? 5.0f*(1.0f-x) : 1.0f));
+			
+			float f = xf*yf;
+			linearTexels[width*j + i] *= f;
+		}
+	}
+}
 - (void) generateLinearizedValues
 {
 	// only symmetric light maps are accepted
@@ -125,6 +143,8 @@ struct lrec { int lo, hi; double t; };
 	width = lwidth;
 	height = lheight;
 	
+	[self fadeToEdges];
+	
 	LogGLError(@"LMP texgen begin");
 	
     if (!textureName)
@@ -162,7 +182,7 @@ struct lrec { int lo, hi; double t; };
 	if (!self)
 		return nil;
 	
-	vizShader = [[GLSLShader alloc] initWithVertexShaderFile: @"lmpviz.vs" fragmentShaderFile: @"lmpviz.fs"];
+	vizShader = [[GfxShader alloc] initWithVertexShaderFile: @"lmpviz.vs" fragmentShaderFile: @"lmpviz.fs"];
 	
 	if (![fileName isAbsolutePath])
 		fileName = [[NSBundle mainBundle] pathForResource: fileName ofType: nil];
@@ -534,6 +554,19 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	[GLTexture_dict setValue: tex forKey: name];
 	
 	return tex;
+}
+
+- (void) preDrawWithState: (GfxStateStack*) gfxState
+{
+	[gfxState setTexture: self atIndex: 0];
+}
+
+- (void) postDrawWithState: (GfxStateStack*) gfxState
+{
+}
+
+- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
+{
 }
 
 - (matrix_t) denormalMatrix

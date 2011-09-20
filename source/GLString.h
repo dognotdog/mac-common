@@ -2,7 +2,7 @@
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl3.h>
 
-@class GLSLShader;
+@class GfxShader;
 
 @interface GLQuartzTexture : NSObject
 {
@@ -18,11 +18,11 @@
 }
 
 
-- (void) drawWithBounds:(NSRect)bounds withShader: (GLSLShader*) shader;
-- (void) drawCenteredAtPoint:(NSPoint)point scaled: (double) scale withShader: (GLSLShader*) shader;
-- (void) drawAtPoint:(NSPoint)point scaled: (double) scale withShader: (GLSLShader*) shader;
-- (void) drawAtPoint:(NSPoint)point withShader: (GLSLShader*) shader;
-- (void) drawCenteredAtPoint:(NSPoint)point withShader: (GLSLShader*) shader;
+- (void) drawWithBounds:(NSRect)bounds withShader: (GfxShader*) shader;
+- (void) drawCenteredAtPoint:(NSPoint)point scaled: (double) scale withShader: (GfxShader*) shader;
+- (void) drawAtPoint:(NSPoint)point scaled: (double) scale withShader: (GfxShader*) shader;
+- (void) drawAtPoint:(NSPoint)point withShader: (GfxShader*) shader;
+- (void) drawCenteredAtPoint:(NSPoint)point withShader: (GfxShader*) shader;
 
 - (GLuint) texName; // 0 if no texture allocated
 

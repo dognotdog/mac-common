@@ -8,6 +8,7 @@
 
 #import "GfxStateStack.h"
 #import "gfx.h"
+#import "GfxShader.h"
 
 #import <OpenGL/gl3.h>
 
@@ -16,29 +17,30 @@
 #define GSS_FLAG_CHILD		2
 #define GSS_FLAG_SET		4
 
-#define NUM_TEXTURE_UNITS	16
 
 @implementation GfxStateStack
 {
-	GLSLShader*		shader;
+	GfxShader*		shader;
 	matrix_t	modelViewMatrix, projectionMatrix;
-	matrix_t	textureMatrix[NUM_TEXTURE_UNITS];
+	matrix_t	textureMatrix[GFX_NUM_TEXTURE_UNITS];
 	
 	vector_t color, lightPos;
 	
 	BOOL depthTestEnabled;
 	BOOL blendingEnabled;
 	GLuint blendingSrcMode, blendingDstMode;
+	GfxFramebufferObject* framebuffer;
 
-	GfxTexture* textures[NUM_TEXTURE_UNITS];
+	GfxTexture* textures[GFX_NUM_TEXTURE_UNITS];
 	
 	
 	
 	int shaderFlags, modelViewMatrixFlags, projectionMatrixFlags;
-	int textureFlags[NUM_TEXTURE_UNITS];
+	int textureFlags[GFX_NUM_TEXTURE_UNITS];
 	int colorFlags, lightPosFlags;
 	int depthTestEnabledFlags;
 	int blendingEnabledFlags, blendingModeFlags;
+	int framebufferFlags;
 	
 	GfxStateStack*          parent;
 	GfxStateStack*			child;
@@ -58,7 +60,7 @@
     projectionMatrixFlags = GSS_FLAG_SET;
     
     
-    for (int i = 0; i < NUM_TEXTURE_UNITS; ++i)
+    for (int i = 0; i < GFX_NUM_TEXTURE_UNITS; ++i)
     {
         textureMatrix[i] = mIdentity();
         textureFlags[i] = GSS_FLAG_SET;
@@ -70,7 +72,22 @@
     return self;
 }
 
-@synthesize shader, modelViewMatrix, projectionMatrix, color, lightPos, blendingDstMode, blendingSrcMode, blendingEnabled, depthTestEnabled;
+@synthesize shader, modelViewMatrix, projectionMatrix, color, lightPos, blendingDstMode, blendingSrcMode, blendingEnabled, depthTestEnabled, framebuffer;
+
+#define MODFLAGS								\
+{												\
+	MODFLAG(shaderFlags);						\
+	MODFLAG(modelViewMatrixFlags);				\
+	MODFLAG(projectionMatrixFlags);				\
+	for (int i = 0; i < GFX_NUM_TEXTURE_UNITS; ++i)	\
+	MODFLAG(textureFlags[i]);					\
+	MODFLAG(colorFlags);						\
+	MODFLAG(lightPosFlags);						\
+	MODFLAG(depthTestEnabledFlags);				\
+	MODFLAG(blendingEnabledFlags);				\
+	MODFLAG(blendingModeFlags);					\
+	MODFLAG(framebufferFlags);					\
+}
 
 - (GfxStateStack*) pushState
 {
@@ -80,7 +97,7 @@
 	copy->shader = shader;
 	copy->modelViewMatrix = modelViewMatrix;
 	copy->projectionMatrix = projectionMatrix;
-	for (int i = 0; i < NUM_TEXTURE_UNITS; ++i)
+	for (int i = 0; i < GFX_NUM_TEXTURE_UNITS; ++i)
     {
 		copy->textureMatrix[i] = textureMatrix[i];
         copy->textures[i] = textures[i];
@@ -91,22 +108,13 @@
 	copy->blendingEnabled = blendingEnabled;
 	copy->blendingSrcMode = blendingSrcMode;
 	copy->blendingDstMode = blendingDstMode;
+	copy->framebuffer = framebuffer;
 	
-#define CHILDFLAGS(x) copy->x = ((x & GSS_FLAG_PARENT) || (x & GSS_FLAG_SET) ? GSS_FLAG_PARENT : 0)
+#define MODFLAG(x) copy->x = ((x & GSS_FLAG_PARENT) || (x & GSS_FLAG_SET) ? GSS_FLAG_PARENT : 0)
 
-	CHILDFLAGS(shaderFlags);
-	CHILDFLAGS(modelViewMatrixFlags);
-	CHILDFLAGS(projectionMatrixFlags);
-	for (int i = 0; i < NUM_TEXTURE_UNITS; ++i)
-		CHILDFLAGS(textureFlags[i]);
-	CHILDFLAGS(colorFlags);
-	CHILDFLAGS(lightPosFlags);
-	CHILDFLAGS(depthTestEnabledFlags);
-	CHILDFLAGS(blendingEnabledFlags);
-	CHILDFLAGS(blendingModeFlags);
-	
+	MODFLAGS;
 
-#undef CHILDFLAGS
+#undef MODFLAG
 	
 	child = copy;
 	assert(copy);
@@ -120,20 +128,11 @@
         assert(parent);
 		return [parent popState];
 	}
-#define POPFLAGS(x) x |= ((child->x & GSS_FLAG_SET) ? GSS_FLAG_CHILD : 0)
+#define MODFLAG(x) x |= ((child->x & (GSS_FLAG_SET|GSS_FLAG_CHILD)) ? GSS_FLAG_CHILD : 0)
 
-	POPFLAGS(shaderFlags);
-	POPFLAGS(modelViewMatrixFlags);
-	POPFLAGS(projectionMatrixFlags);
-	for (int i = 0; i < NUM_TEXTURE_UNITS; ++i)
-		POPFLAGS(textureFlags[i]);
-	POPFLAGS(colorFlags);
-	POPFLAGS(lightPosFlags);
-	POPFLAGS(depthTestEnabledFlags);
-	POPFLAGS(blendingEnabledFlags);
-	POPFLAGS(blendingModeFlags);
+	MODFLAGS;
 	
-#undef POPFLAGS
+#undef MODFLAG
 	
 	child = nil;
 	return self;
@@ -141,20 +140,26 @@
 
 - (void) submitState
 {
-#define FLAGCHANGED(x) (1 || ((x & GSS_FLAG_SET) || (x & GSS_FLAG_CHILD)))
+#define FLAGCHANGED(x) (((x & GSS_FLAG_SET) || (x & GSS_FLAG_CHILD)))
 
 	BOOL shaderChanged = FLAGCHANGED(shaderFlags);
     
     GLint tmp = -1;
 
     LogGLError(@"begin");
-    assert(shader);
+    gfxAssert(shader);
 	
 	BOOL mvmChanged = FLAGCHANGED(modelViewMatrixFlags);
 	BOOL pmChanged = FLAGCHANGED(projectionMatrixFlags);
 
 	if (shaderChanged)
 		[shader useShader];
+
+#if GFX_DEBUG_ENABLED
+	GLint cp;
+	glGetIntegerv(GL_CURRENT_PROGRAM, &cp);
+	assert(cp == [shader glName]);
+#endif	
 	if (shaderChanged || mvmChanged)
 	{
         if ((tmp=glGetUniformLocation(shader.glName, "modelViewMatrix")) != -1)
@@ -171,7 +176,7 @@
 
     LogGLError(@"uniforms submitted.0");
 
-	for (int i = 0; i < NUM_TEXTURE_UNITS; ++i)
+	for (int i = 0; i < GFX_NUM_TEXTURE_UNITS; ++i)
 		if (shaderChanged || FLAGCHANGED(textureFlags[i]))
 		{
 			GfxTexture* texture = textures[i];
@@ -188,6 +193,7 @@
             if ((tmp=glGetUniformLocation(shader.glName, [[NSString stringWithFormat: @"textureMatrix%d", i] UTF8String])) != -1)
                 glUniformMatrix4(tmp, textureMatrix[i]);
 		}
+    LogGLError(@"uniforms submitted.1");
 	if (shaderChanged || FLAGCHANGED(lightPosFlags))
         if ((tmp=glGetUniformLocation(shader.glName, "lightPos")) != -1)
             glUniformVector4(tmp, lightPos);
@@ -206,24 +212,18 @@
 		blendingEnabled ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
 	if (FLAGCHANGED(blendingModeFlags))
 		glBlendFunc(blendingSrcMode, blendingDstMode);
+	if (FLAGCHANGED(framebufferFlags))
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer.fbo);
 
     LogGLError(@"state submitted");
 	
 #undef FLAGCHANGED
 	
-#define SUBFLAGS(x) x &= ~GSS_FLAG_CHILD
+#define MODFLAG(x) x &= ~GSS_FLAG_CHILD
 
-	SUBFLAGS(shaderFlags);
-	SUBFLAGS(modelViewMatrixFlags);
-	SUBFLAGS(projectionMatrixFlags);
-	for (int i = 0; i < NUM_TEXTURE_UNITS; ++i)
-		SUBFLAGS(textureFlags[i]);
-	SUBFLAGS(colorFlags);
-	SUBFLAGS(lightPosFlags);
-	SUBFLAGS(blendingEnabledFlags);
-	SUBFLAGS(blendingModeFlags);
+	MODFLAGS;
 
-#undef SUBFLAGS
+#undef MODFLAG
 
 }
 
@@ -258,19 +258,25 @@
 	glUniform4f(uloc, val.farr[0], val.farr[1], val.farr[2], val.farr[3]);
 }
 
-- (void) setShader:(GLSLShader*)si
+- (void) setShader:(GfxShader*)si
 {
 	shader = si;
 	shaderFlags |= GSS_FLAG_SET;
 }
 
-- (void) setModelViewMatrix:(matrix_t)m
+- (void) setFramebuffer: (GfxFramebufferObject*) fbo
+{
+	framebuffer = fbo;
+	framebufferFlags |= GSS_FLAG_SET;
+}
+
+- (void) setModelViewMatrix: (matrix_t) m
 {
 	modelViewMatrix = m;
 	modelViewMatrixFlags |= GSS_FLAG_SET;
 }
 
-- (void) setProjectionMatrix:(matrix_t)m
+- (void) setProjectionMatrix:(matrix_t) m
 {
 	projectionMatrix = m;
 	projectionMatrixFlags |= GSS_FLAG_SET;
@@ -278,14 +284,14 @@
 
 - (void) setTextureMatrix: (matrix_t) m atIndex: (NSUInteger) index
 {
-    assert(index < NUM_TEXTURE_UNITS);
+    assert(index < GFX_NUM_TEXTURE_UNITS);
 	textureMatrix[index] = m;
 	textureFlags[index] |= GSS_FLAG_SET;
 }
 
-- (void) setTexture:(GfxTexture*) texture atIndex:(NSUInteger)index
+- (void) setTexture: (GfxTexture*) texture atIndex:(NSUInteger)index
 {
-    assert(index < NUM_TEXTURE_UNITS);
+    assert(index < GFX_NUM_TEXTURE_UNITS);
 	textures[index] = texture;
 	textureFlags[index] |= GSS_FLAG_SET;
 	

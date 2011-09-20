@@ -13,9 +13,18 @@
 
 #import "GfxTexture.h"
 
+#define GFX_DEBUG_ENABLED	0
 
 #define NSPrettyLog(...) NSLog(@"%s: %@", __PRETTY_FUNCTION__, [NSString stringWithFormat: __VA_ARGS__])
-#define LogGLError(x) _LogGLError([NSString stringWithFormat: @"%s: %@", __PRETTY_FUNCTION__, x]);
+
+#if GFX_DEBUG_ENABLED
+	#define LogGLError(x) _LogGLError([NSString stringWithFormat: @"%s: %@", __PRETTY_FUNCTION__, x])
+	#define gfxAssert(x) assert(x)
+#else
+	#define LogGLError(x)	
+	#define gfxAssert(x)	
+#endif
+
 void	_LogGLError(NSString* str);
 
 #define GFX_ATTRIB_POS			0
@@ -33,7 +42,9 @@ void	_LogGLError(NSString* str);
 #define GFX_RESOURCE_RBO		4
 #define GFX_RESOURCE_FBO		5
 
-@class TransformNode, GfxTexture, GfxMesh_batch, GfxStateStack;
+#define GFX_NUM_TEXTURE_UNITS	16
+
+@class GfxTransformNode, GfxTexture, GfxMesh_batch, GfxStateStack;
 
 @interface GfxMesh : NSObject
 {
@@ -53,7 +64,7 @@ void	_LogGLError(NSString* str);
 	SEL	drawSelector;
 	NSMutableArray*	batches;
 	
-	TransformNode*	transform;
+	GfxTransformNode*	transform;
 	matrix_t		textureMatrix;
 	GfxTexture*		texture;
     
@@ -89,6 +100,7 @@ void	_LogGLError(NSString* str);
 
 - (void) appendMesh: (GfxMesh*) mesh;
 - (void) addBatch: (GfxMesh_batch*) batch;
+- (void) removeAllBatches;
 
 - (void) justDraw;
 - (void) drawBatch: (GfxMesh_batch*) batch;
@@ -111,7 +123,7 @@ void	_LogGLError(NSString* str);
 + (GfxMesh*) sphereMeshNegHemi;
 
 @property SEL drawSelector;
-@property(retain) TransformNode* transform;
+@property(retain) GfxTransformNode* transform;
 @property(retain) GfxTexture* texture;
 @property matrix_t textureMatrix;
 
@@ -130,53 +142,15 @@ void	_LogGLError(NSString* str);
 
 @end
 
-void glUniformMatrix4(GLint uloc, matrix_t m);
-void glUniformVector4(GLint uloc, vector_t v);
 
-@interface GLSLShader : NSObject
-{
-	GLuint		glName;
-	NSString*	vertexShaderSource;
-	NSString*	fragmentShaderSource;
-//	matrix_t	modelViewMatrix;
-//	matrix_t	projectionMatrix;
-	
-//	GLint	_modelViewMatrixLoc, _projectionMatrixLoc, _normalMatrixLoc, _mvpMatrixLoc;
-}
-
-/*
-- (void) concatModelViewMatrix: (matrix_t) m;
-@property(nonatomic) matrix_t modelViewMatrix;
-@property(nonatomic) matrix_t projectionMatrix;
-
-- (void) setIntegerUniform: (GLint) val named: (NSString*) name;
-- (void) setFloatUniform: (GLfloat) val named: (NSString*) name;
-- (void) setMatrixUniform: (matrix_t) val named: (NSString*) name;
-- (void) setVectorUniform: (vector_t) val named: (NSString*) name;
-- (void) setVector3Uniform: (vector_t) val named: (NSString*) name;
-*/
-- (id) initWithVertexShader: (NSString*) vs fragmentShader: (NSString*) fs;
-- (id) initWithVertexShaderFile: (NSString*) vsf fragmentShaderFile: (NSString*) fsf;
-- (id) initWithVertexShaderFiles: (NSArray*) vsa fragmentShaderFiles: (NSArray*) fsa prefixString: (NSString*) prefix;
-
-- (void) useShader;
-
-@property(nonatomic,copy) NSString* vertexShaderSource;
-@property(nonatomic,copy) NSString* fragmentShaderSource;
-
-+ (void) useFixedFunctionPipeline;
-
-@property(nonatomic,readonly) GLuint glName;
-
-@end
-
-
-@interface FramebufferObject : NSObject
+@interface GfxFramebufferObject : NSObject
 {
 	GLuint fbo;
 }
 
-@property(readonly) GLuint fbo;
+- (id) initAsShadowMap: (GLuint) texId;
+
+@property(nonatomic,readonly) GLuint fbo;
 @end
 
 
@@ -186,8 +160,8 @@ void glUniformVector4(GLint uloc, vector_t v);
 	GfxTexture*			shadowTexture;
 //	GLuint				shadowTexture;
 	int					width, height;
-	FramebufferObject*	fbo;
-	GLSLShader*			vizShader;
+	GfxFramebufferObject*	fbo;
+	GfxShader*			vizShader;
 }
 - (id) initWithWidth: (int) w height: (int) h;
 
@@ -203,20 +177,24 @@ void glUniformVector4(GLint uloc, vector_t v);
 
 @end
 
-@interface TransformNode : NSObject
-{
-	matrix_t matrix;
-	TransformNode* parentTransform;
-}
+@interface GfxTransformNode : NSObject
 
 - (id) initWithMatrix: (matrix_t) m;
 
 - (matrix_t) completeTransform;
-- (matrix_t) matrixToNode: (TransformNode*) node;
+- (matrix_t) matrixToNode: (GfxTransformNode*) node;
 
-@property(nonatomic, strong) TransformNode* parentTransform;
-@property(nonatomic) matrix_t matrix;
+@property(nonatomic, strong) GfxTransformNode* parentTransform;
+@property(nonatomic, readonly) matrix_t matrix;
 @end
+
+@interface GfxCameraNode : GfxTransformNode
+- (id) initWithTransform: (matrix_t) m projection: (matrix_t) p;
+
+@property(nonatomic, readonly) matrix_t projectionMatrix;
+
+@end
+
 
 @interface SimpleMaterialNode : NSObject
 {
@@ -231,6 +209,24 @@ void glUniformVector4(GLint uloc, vector_t v);
 
 @end
 
+@interface GfxMultiTexture : NSObject
+{
+	GfxTexture* textures[GFX_NUM_TEXTURE_UNITS];
+}
+
+- (void) setTexture: (GfxTexture*) tex atIndex: (GLuint) index;
+
+@end
+
+@interface GfxShaderUniforms : NSObject
+
+- (void) setIntegerUniform: (GLint) x named: (NSString*) name;
+- (void) setFloatUniform: (GLfloat) x named: (NSString*) name;
+- (void) setMatrixUniform: (matrix_t) x named: (NSString*) name;
+- (void) setVectorUniform: (vector_t) x named: (NSString*) name;
+
+@end
+
 @interface GfxNode : NSObject
 {
 	NSMutableArray*	children;
@@ -241,6 +237,8 @@ void glUniformVector4(GLint uloc, vector_t v);
 
 - (void) addChild: (id) child;
 - (void) addChildrenFromArray: (NSArray*) array;
+
+- (id) nodalCopy;
 
 - (NSArray*) flattenToMeshes;
 

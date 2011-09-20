@@ -3,7 +3,7 @@
 //  colorspace
 //
 //  Created by Dömötör Gulyás on 23.06.2011.
-//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//  Copyright 2011 Dömötör Gulyás. All rights reserved.
 //
 
 #import "GLBaseView.h"
@@ -11,6 +11,7 @@
 #import "gfx.h"
 #import "GLString.h"
 #import "GLDrawableBuffer.h"
+#import "GfxShader.h"
 
 #import <Carbon/Carbon.h>
 #import <OpenGL/gl3.h>
@@ -30,6 +31,9 @@ static	NSOpenGLPixelFormatAttribute _formatAttribs[] = {
 	//	#endif
 	0};
 
+
+const NSString* GLBaseViewViewportKey = @"GLBaseViewViewport";
+
 @interface GLBaseView (Private)
 - (void) setOpenGLontext: (id) context;
 - (void) drawFrame;
@@ -40,7 +44,7 @@ static	NSOpenGLPixelFormatAttribute _formatAttribs[] = {
 
 @implementation GLBaseView
 
-@synthesize openGLContext, captureMouseEnabled, drawableBuffer;
+@synthesize openGLContext, captureMouseEnabled, drawableBuffer, frameCount;
 
 - (void) setFrame: (NSRect) frame
 {
@@ -66,6 +70,7 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	
 	self = [super initWithFrame:frame];
 	NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat: fmt shareContext: nil];
+	[context update];
 	
 	CGLLockContext([context CGLContextObj]);
 	
@@ -95,9 +100,11 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	
 	
 	glClearColor(1.0,1.0,1.0,1.0);
+	NSSize size = [self bounds].size;
+	glViewport(0,0, size.width, size.height);
 	
 	
-	simpleShader = [[GLSLShader alloc] initWithVertexShaderFiles: [NSArray arrayWithObjects: @"simple.vs", nil] fragmentShaderFiles: [NSArray arrayWithObjects: @"simple.fs", nil] prefixString: @""];
+//	simpleShader = [[GfxShader alloc] initWithVertexShaderFiles: [NSArray arrayWithObjects: @"simple.vs", nil] fragmentShaderFiles: [NSArray arrayWithObjects: @"simple.fs", nil] prefixString: @""];
 	
 	statusString = [[GLString alloc] initWithString: @"test" withAttributes: [GLString defaultStringAttributes] withTextColor: [NSColor whiteColor] withBoxColor: [NSColor blackColor] withBorderColor: [NSColor grayColor]];
 	
@@ -105,6 +112,8 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	
 
 	[self setupView];
+	
+	drawableBuffer = [[GLDrawableBuffer alloc] init];
 	
     // Activate the display link
     CVDisplayLinkStart(displayLink);
@@ -118,16 +127,16 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	NSOpenGLContext* context = self.openGLContext;
 	if (!context)
 		return;
-	CGLLockContext([context CGLContextObj]);
-	[context makeCurrentContext];
-	[context update];
 	
-	NSSize size = [self bounds].size;
-	glViewport(0,0, size.width, size.height);
-	
-	
-	CGLUnlockContext([context CGLContextObj]);
-	
+	[drawableBuffer queueSetup: ^{
+
+		[context makeCurrentContext];
+		[context update];
+		
+		NSSize size = [self bounds].size;
+		glViewport(0,0, size.width, size.height);
+	}];
+		
 	//	[super reshape];
 }
 
@@ -138,15 +147,16 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	NSOpenGLContext* context = self.openGLContext;
 	if (!context)
 		return;
-	CGLLockContext([context CGLContextObj]);
-	[context makeCurrentContext];
-	[context update];
-	
-	NSSize size = [self bounds].size;
-	glViewport(0,0, size.width, size.height);
-	
-	CGLUnlockContext([context CGLContextObj]);
-	
+
+	[drawableBuffer queueSetup: ^{
+		
+		[context makeCurrentContext];
+		[context update];
+		
+		NSSize size = [self bounds].size;
+		glViewport(0,0, size.width, size.height);
+	}];
+
 	//	[super update];
 }
 
@@ -163,7 +173,16 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 
 - (void) drawRect: (NSRect) rect
 {
-	return;
+	NSOpenGLContext* context = self.openGLContext;
+	
+	CGLLockContext([context CGLContextObj]);
+	
+	if ([context view] != self)
+	{
+		[context setView: self];
+		[context update];
+	}
+	CGLUnlockContext([context CGLContextObj]);
 }
 
 - (void) setupView
@@ -180,45 +199,62 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	 */
 	
 	[drawableBuffer applyUpdates];
+	[drawableBuffer draw];
 	
 }
 
 - (CVReturn) getFrameForTime: (const CVTimeStamp*) outputTime
 {
-	//	NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-	
-	[[self openGLContext] makeCurrentContext];
-	
-	CGLLockContext(CGLGetCurrentContext());
-	
-	
-	NSSize size = [self bounds].size;
-	glViewport(0,0, size.width, size.height);
-	
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-	glPolygonOffset(1.0,1.0);
-	glEnable(GL_POLYGON_OFFSET_FILL);
-	
-	
-	glColor4f(1.0f,1.0f,1.0f,1.0f);
+	@autoreleasepool {
+		//	NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+		
+		if (![[self openGLContext] view])
+			return kCVReturnSuccess;
+		[[self openGLContext] makeCurrentContext];
+		
+		CGLLockContext(CGLGetCurrentContext());
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		
+		LogGLError(@"begin");
+		
+		NSSize size = [self bounds].size;
+		glViewport(0,0, size.width, size.height);
+		
+		LogGLError(@"setup");
 
-	glFrontFace(GL_CCW);
-	glCullFace(GL_BACK);
-	glDisable(GL_CULL_FACE);
-	
-	[self drawForTime: outputTime];
-	
-	LogGLError(@"what happen");
-	
-	[[self openGLContext] flushBuffer];
-	
-	[GfxResourceDisposal performDisposal];
-	
-	CGLUnlockContext(CGLGetCurrentContext());
-	
-	return kCVReturnSuccess;
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		LogGLError(@"setup");
+		glEnable(GL_DEPTH_TEST);
+		LogGLError(@"setup");
+		glDepthFunc(GL_LEQUAL);
+		LogGLError(@"setup");
+		glPolygonOffset(1.0,1.0);
+		//glEnable(GL_POLYGON_OFFSET_FILL);
+		
+		LogGLError(@"setup");
+		
+		glFrontFace(GL_CCW);
+		glCullFace(GL_BACK);
+		glDisable(GL_CULL_FACE);
+
+		LogGLError(@"setup done");
+
+		[self drawForTime: outputTime];
+		
+		LogGLError(@"after draw");
+		
+		[[self openGLContext] flushBuffer];
+		
+		[GfxResourceDisposal performDisposal];
+		
+		CGLUnlockContext(CGLGetCurrentContext());
+
+		frameCount++;
+		
+		return kCVReturnSuccess;
+	}
 }
 
 
@@ -315,6 +351,7 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	
 }
 
+/*
 - (void)lockFocus
 {
 	NSOpenGLContext* context = self.openGLContext;
@@ -336,6 +373,6 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	[context makeCurrentContext];
 	CGLUnlockContext([context CGLContextObj]);
 }
-
+*/
 
 @end
