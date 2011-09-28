@@ -26,6 +26,13 @@
 	
 	vector_t color, lightPos;
 	
+	BOOL cullingEnabled;
+	GLint frontFace, cullFace;
+	
+	BOOL polygonOffsetEnabled;
+	GLfloat polygonOffsetUnits, polygonOffsetFactor;
+	GLint polygonMode;
+
 	BOOL depthTestEnabled;
 	BOOL blendingEnabled;
 	GLuint blendingSrcMode, blendingDstMode;
@@ -40,6 +47,7 @@
 	int colorFlags, lightPosFlags;
 	int depthTestEnabledFlags;
 	int blendingEnabledFlags, blendingModeFlags;
+	int cullingFlags, polygonOffsetFlags, polygonModeFlags;
 	int framebufferFlags;
 	
 	GfxStateStack*          parent;
@@ -72,7 +80,7 @@
     return self;
 }
 
-@synthesize shader, modelViewMatrix, projectionMatrix, color, lightPos, blendingDstMode, blendingSrcMode, blendingEnabled, depthTestEnabled, framebuffer;
+@synthesize shader, modelViewMatrix, projectionMatrix, color, lightPos, blendingDstMode, blendingSrcMode, blendingEnabled, depthTestEnabled, framebuffer, cullingEnabled, frontFace, cullFace, polygonOffsetEnabled, polygonOffsetUnits, polygonOffsetFactor, polygonMode;
 
 #define MODFLAGS								\
 {												\
@@ -87,6 +95,9 @@
 	MODFLAG(blendingEnabledFlags);				\
 	MODFLAG(blendingModeFlags);					\
 	MODFLAG(framebufferFlags);					\
+	MODFLAG(cullingFlags);						\
+	MODFLAG(polygonOffsetFlags);				\
+	MODFLAG(polygonModeFlags);						\
 }
 
 - (GfxStateStack*) pushState
@@ -104,6 +115,13 @@
     }
 	copy->color = color;
 	copy->lightPos = lightPos;
+	copy->cullingEnabled = cullingEnabled;
+	copy->frontFace = frontFace;
+	copy->cullFace = cullFace;
+	copy->polygonOffsetEnabled = polygonOffsetEnabled;
+	copy->polygonOffsetUnits = polygonOffsetUnits;
+	copy->polygonOffsetFactor = polygonOffsetFactor;
+	copy->polygonMode = polygonMode;
 	copy->depthTestEnabled = depthTestEnabled;
 	copy->blendingEnabled = blendingEnabled;
 	copy->blendingSrcMode = blendingSrcMode;
@@ -206,6 +224,22 @@
 
     LogGLError(@"attribs submitted");
 
+	if (FLAGCHANGED(cullingFlags))
+	{
+		cullingEnabled ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
+		glCullFace(cullFace);
+		glFrontFace(frontFace);
+	}
+	if (FLAGCHANGED(polygonOffsetFlags))
+	{
+		polygonOffsetEnabled ? glEnable(GL_POLYGON_OFFSET_FILL) : glDisable(GL_POLYGON_OFFSET_FILL);
+		polygonOffsetEnabled ? glEnable(GL_POLYGON_OFFSET_LINE) : glDisable(GL_POLYGON_OFFSET_LINE);
+		glPolygonOffset(polygonOffsetFactor, polygonOffsetUnits);
+	}
+	if (FLAGCHANGED(polygonModeFlags))
+	{
+		glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
+	}
 	if (FLAGCHANGED(depthTestEnabledFlags))
 		depthTestEnabled ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
 	if (FLAGCHANGED(blendingEnabledFlags))
@@ -309,6 +343,18 @@
 	lightPosFlags |= GSS_FLAG_SET;
 }
 
+- (void) setCullingEnabled:(BOOL)enable
+{
+	cullingEnabled = enable;
+	cullingFlags |= GSS_FLAG_SET;
+}
+
+- (void) setPolygonOffsetEnabled:(BOOL)enable
+{
+	polygonOffsetEnabled = enable;
+	polygonOffsetFlags |= GSS_FLAG_SET;
+}
+
 - (void) setDepthTestEnabled:(BOOL)enable
 {
 	depthTestEnabled = enable;
@@ -331,6 +377,36 @@
 {
 	blendingSrcMode = mode;
 	blendingModeFlags |= GSS_FLAG_SET;
+}
+
+- (void) setFrontFace:(GLint)face
+{
+	frontFace = face;
+	cullingFlags |= GSS_FLAG_SET;
+}
+
+- (void) setCullFace:(GLint)face
+{
+	cullFace = face;
+	cullingFlags |= GSS_FLAG_SET;
+}
+
+- (void) setPolygonMode:(GLint) mode
+{
+	polygonMode = mode;
+	polygonModeFlags |= GSS_FLAG_SET;
+}
+
+- (void) setPolygonOffsetUnits:(GLfloat)f
+{
+	polygonOffsetUnits = f;
+	polygonOffsetFlags |= GSS_FLAG_SET;
+}
+
+- (void) setPolygonOffsetFactor:(GLfloat)f
+{
+	polygonOffsetFactor = f;
+	polygonOffsetFlags |= GSS_FLAG_SET;
 }
 
 

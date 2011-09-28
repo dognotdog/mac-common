@@ -55,9 +55,11 @@ const NSString* GLBaseViewViewportKey = @"GLBaseViewViewport";
 
 static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp* now, const CVTimeStamp* outputTime, CVOptionFlags flagsIn, CVOptionFlags* flagsOut, void* displayLinkContext)
 {
-	id self = (__bridge GLBaseView*)displayLinkContext;
-    CVReturn result = [self getFrameForTime: outputTime];
-    return result;
+	@autoreleasepool {
+		id self = (__bridge GLBaseView*)displayLinkContext;
+		CVReturn result = [self getFrameForTime: outputTime];
+		return result;
+	}
 }
 
 - (id)initWithFrame:(NSRect)frame
@@ -99,6 +101,8 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	[[self openGLContext] makeCurrentContext];
 	
 	
+	[GfxNode checkCapabilities];
+	
 	glClearColor(1.0,1.0,1.0,1.0);
 	NSSize size = [self bounds].size;
 	glViewport(0,0, size.width, size.height);
@@ -108,11 +112,12 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	
 	statusString = [[GLString alloc] initWithString: @"test" withAttributes: [GLString defaultStringAttributes] withTextColor: [NSColor whiteColor] withBoxColor: [NSColor blackColor] withBorderColor: [NSColor grayColor]];
 	
-	CGLUnlockContext([context CGLContextObj]);
 	
 
 	[self setupView];
 	
+	CGLUnlockContext([context CGLContextObj]);
+
 	drawableBuffer = [[GLDrawableBuffer alloc] init];
 	
     // Activate the display link

@@ -1096,6 +1096,12 @@ static inline int v3iProduct(v3i_t a)
 	return a.x*a.y*a.z;
 }
 
+static inline int v3iRangesIntersect(v3i_t mina, v3i_t maxa, v3i_t minb, v3i_t maxb)
+{
+	return (mina.x < maxb.x) && (mina.y < maxb.y) && (mina.z < maxb.z)
+		&& (minb.x < maxa.x) && (minb.y < maxa.y) && (minb.z < maxa.z);
+}
+
 
 #ifdef __gl_h_
 

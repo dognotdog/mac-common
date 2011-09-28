@@ -67,6 +67,31 @@ static int _extension_supported(const char *extension)
 
 @end
 
+@implementation GfxPolygonSettingsNode
+
+@synthesize cullingEnabled, frontFace, cullFace, polygonOffsetEnabled, polygonOffsetUnits, polygonOffsetFactor, polygonMode;
+
+- (void) preDrawWithState: (GfxStateStack*) gfxState
+{
+	gfxState.cullingEnabled = cullingEnabled;
+	gfxState.frontFace = frontFace;
+	gfxState.cullFace = cullFace;
+	gfxState.polygonOffsetEnabled = polygonOffsetEnabled;
+	gfxState.polygonOffsetFactor = polygonOffsetFactor;
+	gfxState.polygonOffsetUnits = polygonOffsetUnits;
+	gfxState.polygonMode = polygonMode;
+}
+- (void) postDrawWithState: (GfxStateStack*) gfxState
+{
+}
+
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
+{
+	return NO;
+}
+
+
+@end
 
 
 @implementation SimpleMaterialNode
@@ -104,8 +129,9 @@ static int _extension_supported(const char *extension)
 	}
 }
 
-- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
+	return NO;
 }
 
 - (NSArray*) flattenToMeshes
@@ -140,8 +166,9 @@ static int _extension_supported(const char *extension)
 {
 }
 
-- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
+	return NO;
 }
 
 @end
@@ -232,8 +259,9 @@ static int _extension_supported(const char *extension)
 {
 }
 
-- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
+	return NO;
 }
 
 @end
@@ -254,31 +282,6 @@ static int _extension_supported(const char *extension)
 	return self;
 }
 
-- (void) finalize
-{
-	if (vao)
-		[GfxResourceDisposal disposeOfResourcesWithTypes: vao, GFX_RESOURCE_VAO, NULL];
-	if (vertexBuffer)
-		[GfxResourceDisposal disposeOfResourcesWithTypes: vertexBuffer, GFX_RESOURCE_VBO, NULL];
-	if (normalBuffer)
-		[GfxResourceDisposal disposeOfResourcesWithTypes: normalBuffer, GFX_RESOURCE_VBO, NULL];
-	if (texCoordBuffer)
-		[GfxResourceDisposal disposeOfResourcesWithTypes: texCoordBuffer, GFX_RESOURCE_VBO, NULL];
-	if (indexBuffer)
-		[GfxResourceDisposal disposeOfResourcesWithTypes: indexBuffer, GFX_RESOURCE_VBO, NULL];
-
-	if (vertices)
-		free(vertices);
-	if (texCoords)
-		free(texCoords);
-	if (normals)
-		free(normals);
-	if (indices)
-		free(indices);
-
-	[super finalize];
-}
-
 - (void) dealloc
 {
 	if (vertices)
@@ -287,6 +290,8 @@ static int _extension_supported(const char *extension)
 		free(texCoords);
 	if (normals)
 		free(normals);
+	if (colors)
+		free(colors);
 	if (indices)
 		free(indices);
 	
@@ -899,9 +904,11 @@ static int _extension_supported(const char *extension)
 {
 }
 
-- (void) drawHierarchyWithState: (GfxStateStack*) state
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) state
 {
 	[self justDraw];
+	
+	return NO;
 }
 
 
@@ -2028,8 +2035,9 @@ static GLint _viewportCache[4];
 	glClear(GL_DEPTH_BUFFER_BIT);
 }
 
-- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
+	return NO;
 }
 
 - (void) postDrawWithState: (GfxStateStack*) gfxState
@@ -2156,8 +2164,9 @@ static GLint _viewportCache[4];
 {
 }
 
-- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
+	return NO;
 }
 
 
@@ -2240,7 +2249,7 @@ static GLint _viewportCache[4];
 {
 }
 
-- (void) drawHierarchyWithState: (GfxStateStack*) gfxState
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
     assert(gfxState);
 	for (id child in children)
@@ -2248,12 +2257,15 @@ static GLint _viewportCache[4];
 		[child preDrawWithState: gfxState];
 	}
  
-    [gfxState submitState];
+	BOOL submitState = YES;
 	
     for (id child in children)
 	{
-        assert(gfxState = [gfxState pushState]);
-		[child drawHierarchyWithState: gfxState];
+		if (submitState)
+			[gfxState submitState];
+        
+		assert(gfxState = [gfxState pushState]);
+		submitState = ![child drawHierarchyWithState: gfxState];
         assert(gfxState = [gfxState popState]);
 	}
 	for (id child in [children reverseObjectEnumerator])
@@ -2261,6 +2273,7 @@ static GLint _viewportCache[4];
 		[child postDrawWithState: gfxState];
 	}
 
+	return YES;
 }
 
 - (void) optimizeTransforms

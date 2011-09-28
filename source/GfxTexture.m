@@ -521,21 +521,27 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	if (!GLTexture_dict)
 		GLTexture_dict = [[NSMutableDictionary alloc] init];
 	
-	
-	GfxTexture* tex = [GLTexture_dict objectForKey: name];
-	if (!tex)
+	@synchronized(GLTexture_dict)
 	{
-		tex = [[GfxImageTexture alloc] initWithImageNamed: name];
-		[GLTexture_dict setValue: tex forKey: name];
+	
+		GfxTexture* tex = [GLTexture_dict objectForKey: name];
+		if (!tex)
+		{
+			tex = [[GfxImageTexture alloc] initWithImageNamed: name];
+			[GLTexture_dict setValue: tex forKey: name];
+		}
+		
+		
+		return tex;
 	}
-	
-	
-	return tex;
 }
 
 + (id) existingTextureNamed: (NSString*) name
 {
-	return [GLTexture_dict objectForKey: name];
+	@synchronized(GLTexture_dict)
+	{
+		return [GLTexture_dict objectForKey: name];
+	}
 }
 
 + (id) createPreBoundTextureWithId: (GLuint) tid named: (NSString*) name
@@ -543,17 +549,20 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	if (!GLTexture_dict)
 		GLTexture_dict = [[NSMutableDictionary alloc] init];
 	
-	GfxTexture* tex = [GLTexture_dict objectForKey: name];
-	if (tex)
+	@synchronized(GLTexture_dict)
 	{
-		NSLog(@"oops, texture exists already");
-		assert(0);
+		GfxTexture* tex = [GLTexture_dict objectForKey: name];
+		if (tex)
+		{
+			NSLog(@"oops, texture exists already");
+			assert(0);
+		}
+		
+		tex = [[GfxTexture alloc] initWithTexId: tid named: name];
+		[GLTexture_dict setValue: tex forKey: name];
+		
+		return tex;
 	}
-	
-	tex = [[GfxTexture alloc] initWithTexId: tid named: name];
-	[GLTexture_dict setValue: tex forKey: name];
-	
-	return tex;
 }
 
 - (void) preDrawWithState: (GfxStateStack*) gfxState
@@ -669,7 +678,7 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	
 	NSGraphicsContext* context = [NSGraphicsContext graphicsContextWithBitmapImageRep: bitmap];
 	if (!context)
-		NSLog(@"%@", name);
+		NSLog(@"no context for %@", name);
 	assert(context);
 	[context setImageInterpolation:NSImageInterpolationNone];
 	[NSGraphicsContext saveGraphicsState];
@@ -768,7 +777,8 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	if (!GLTexture_dict)
 		GLTexture_dict = [[NSMutableDictionary alloc] init];
 	
-	
+	@synchronized(GLTexture_dict)
+	{
 	GfxTexture* tex = [GLTexture_dict objectForKey: name];
 	if (!tex)
 	{
@@ -778,6 +788,7 @@ static BOOL _gfx_isMipmappingSupported = NO;
 	
 	
 	return tex;
+	}
 }
 
 - (id) init

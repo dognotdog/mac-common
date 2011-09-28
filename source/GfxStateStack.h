@@ -41,4 +41,12 @@
 @property(nonatomic) GLuint blendingDstMode;
 @property(nonatomic,retain) GfxFramebufferObject* framebuffer;
 
+@property(nonatomic) BOOL cullingEnabled;
+@property(nonatomic) GLint frontFace;
+@property(nonatomic) GLint cullFace;
+@property(nonatomic) GLint polygonMode;
+@property(nonatomic) BOOL polygonOffsetEnabled;
+@property(nonatomic) GLfloat polygonOffsetUnits;
+@property(nonatomic) GLfloat polygonOffsetFactor;
+
 @end

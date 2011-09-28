@@ -9,6 +9,7 @@
 #import "ColladaImport.h"
 #import "gfx.h"
 
+#import <OpenGL/gl3.h>
 
 
 
@@ -42,7 +43,7 @@
 {
 	NSString*				identifier;
 }
-@property(copy) NSString* identifier;
+@property(nonatomic,copy) NSString* identifier;
 @end
 
 @implementation ColladaObject
@@ -55,8 +56,8 @@
 	NSString* type;
 }
 
-@property(readonly) NSMutableDictionary* params;
-@property(copy) NSString* type;
+@property(nonatomic,readonly, copy) NSMutableDictionary* params;
+@property(nonatomic,copy) NSString* type;
 
 @end
 
@@ -74,7 +75,7 @@
 {
 	if ([type isEqual: @"effect"])
 	{
-		SimpleMaterialNode* mat = [[SimpleMaterialNode new] autorelease];
+		SimpleMaterialNode* mat = [SimpleMaterialNode new];
 		if ([params objectForKey: @"diffuseColor"])
 			[mat setDiffuseColor: [[params objectForKey: @"diffuseColor"] vectorValue]];
 		
@@ -120,8 +121,8 @@
 	NSMutableArray*			finalNodes;
 }
 
-@property(readonly) NSMutableDictionary* sources;
-@property(readonly) NSMutableArray* finalNodes;
+@property(nonatomic,readonly, copy) NSMutableDictionary* sources;
+@property(nonatomic,readonly, retain) NSMutableArray* finalNodes;
 
 @end
 
@@ -138,7 +139,7 @@
 
 - (id) asGfxNode
 {
-	GfxNode* node = [[GfxNode new] autorelease];
+	GfxNode* node = [GfxNode new];
 	for (id gfx in finalNodes)
 		[node addChild: gfx];
 	return node;
@@ -155,8 +156,8 @@
 	int			numComponents;
 }
 
-@property(retain) NSArray* values;
-@property int numComponents;
+@property(nonatomic,retain) NSArray* values;
+@property(nonatomic) int numComponents;
 
 - (NSArray*) valueAtIndex: (size_t) i;
 
@@ -221,9 +222,9 @@
 	NSString*	name;
 	GfxNode*	gfxNode;
 }
-@property(retain) NSArray* children;
-@property(copy) NSString* name;
-@property(retain) GfxNode* gfxNode;
+@property(nonatomic, retain) NSArray* children;
+@property(nonatomic, copy) NSString* name;
+@property(nonatomic, retain) GfxNode* gfxNode;
 
 - (id) childNamed: (NSString*) name;
 - (id) firstChildNamed: (NSString*) name;
@@ -270,11 +271,10 @@
 
 @interface ColladaTransform : ColladaObject
 {
-	TransformNode* transform;
+	GfxTransformNode* transform;
 }
 
-@property(nonatomic, retain) TransformNode* transform;
-
+@property(nonatomic, retain) GfxTransformNode* transform;
 - (id) asGfxNode;
 
 @end
@@ -295,7 +295,7 @@
 - (void) addSourceToGeometry: (ColladaGeometry*) geo fromSourceElement: (NSXMLElement*) sourceElement
 {
 	NSString* sourceId = [[sourceElement attributeForName: @"id"] stringValue];
-	ColladaSource* source = [[[ColladaSource alloc] init] autorelease];
+	ColladaSource* source = [[ColladaSource alloc] init];
 	[source setIdentifier: sourceId];
 	[[geo sources] setObject: source forKey: sourceId];
 //	NSLog(@"added source with ID: %@", [source identifier]);
@@ -319,7 +319,7 @@
 			{
 				if ([[tec name] isEqual: @"accessor"])
 				{
-					[source setNumComponents: [[tec children] count]];
+					[source setNumComponents: (int)[[tec children] count]];
 				}
 				else
 				{
@@ -417,41 +417,42 @@
 	
 	NSMutableArray* triIndices = [NSMutableArray array];
 	
-	size_t i = 0;
-	
-	for (NSNumber* numVerticesObj in counts)
 	{
-		size_t numVertices = [numVerticesObj unsignedLongValue];
-		switch(numVertices)
+		size_t i = 0;
+		for (NSNumber* numVerticesObj in counts)
 		{
-			case 3:
-				[triIndices addObject: [homIndices objectAtIndex: i+0]];
-				[triIndices addObject: [homIndices objectAtIndex: i+1]];
-				[triIndices addObject: [homIndices objectAtIndex: i+2]];
-				break;
-			case 4:
-				[triIndices addObject: [homIndices objectAtIndex: i+0]];
-				[triIndices addObject: [homIndices objectAtIndex: i+1]];
-				[triIndices addObject: [homIndices objectAtIndex: i+2]];
-				[triIndices addObject: [homIndices objectAtIndex: i+2]];
-				[triIndices addObject: [homIndices objectAtIndex: i+3]];
-				[triIndices addObject: [homIndices objectAtIndex: i+0]];
-				break;
-			default:
-				for (size_t j = 1; j < numVertices; ++j)
-				{
+			size_t numVertices = [numVerticesObj unsignedLongValue];
+			switch(numVertices)
+			{
+				case 3:
 					[triIndices addObject: [homIndices objectAtIndex: i+0]];
-					[triIndices addObject: [homIndices objectAtIndex: i+j-1]];
-					[triIndices addObject: [homIndices objectAtIndex: i+j]];
-				}
-				//NSPrettyLog(@"Can only handle convex polygons with 3 or 4 vertices, not %d.", (int)numVertices);
-				//assert(0);
-				break;
+					[triIndices addObject: [homIndices objectAtIndex: i+1]];
+					[triIndices addObject: [homIndices objectAtIndex: i+2]];
+					break;
+				case 4:
+					[triIndices addObject: [homIndices objectAtIndex: i+0]];
+					[triIndices addObject: [homIndices objectAtIndex: i+1]];
+					[triIndices addObject: [homIndices objectAtIndex: i+2]];
+					[triIndices addObject: [homIndices objectAtIndex: i+2]];
+					[triIndices addObject: [homIndices objectAtIndex: i+3]];
+					[triIndices addObject: [homIndices objectAtIndex: i+0]];
+					break;
+				default:
+					for (size_t j = 1; j < numVertices; ++j)
+					{
+						[triIndices addObject: [homIndices objectAtIndex: i+0]];
+						[triIndices addObject: [homIndices objectAtIndex: i+j-1]];
+						[triIndices addObject: [homIndices objectAtIndex: i+j]];
+					}
+					//NSPrettyLog(@"Can only handle convex polygons with 3 or 4 vertices, not %d.", (int)numVertices);
+					//assert(0);
+					break;
+			}
+			i += numVertices;
 		}
-		i += numVertices;
 	}
 
-	GLMesh* gfxMesh = [[[GLMesh alloc] init] autorelease];
+	GfxMesh* gfxMesh = [[GfxMesh alloc] init];
 	
 	
 	for (size_t i = 0; i < [homInputs count]; ++i)
@@ -478,7 +479,7 @@
 	ColladaParameter* param = [objectDict objectForKey: identifier];
 	if (!param)
 	{
-		param = [[[ColladaParameter alloc] init] autorelease];
+		param = [[ColladaParameter alloc] init];
 		[param setIdentifier: identifier];
 		[objectDict setObject: param forKey: identifier];
 	}
@@ -561,7 +562,7 @@
 	
 	// homogenizing done, time for reducing polygons to triangles
 		
-	GLMesh* gfxMesh = [[[GLMesh alloc] init] autorelease];
+	GfxMesh* gfxMesh = [[GfxMesh alloc] init];
 
 
 	for (size_t i = 0; i < [homInputs count]; ++i)
@@ -611,7 +612,7 @@
 	if ([[trianglesElement attributeForName: @"material"] stringValue])
 	{
 		ColladaParameter* material = [self parameterForUrl: [[trianglesElement attributeForName: @"material"] stringValue]];
-		GfxNode* node = [[GfxNode new] autorelease];
+		GfxNode* node = [GfxNode new];
 		
 		[node addChild: [material asGfxNode]];
 		[node addChild: gfxMesh];
@@ -662,7 +663,7 @@
 	ColladaGeometry* geometry = [objectDict objectForKey: identifier];
 	if (!geometry)
 	{
-		geometry = [[[ColladaGeometry alloc] init] autorelease];
+		geometry = [[ColladaGeometry alloc] init];
 		[geometry setIdentifier: identifier];
 		[objectDict setObject: geometry forKey: identifier];
 	}
@@ -716,7 +717,7 @@ static NSValue* colorFromXmlElement(NSXMLElement* element)
 	}
 	else if ([ename isEqual: @"texture"])
 	{
-		ColladaParameter* texture = [[ColladaParameter new] autorelease];
+		ColladaParameter* texture = [ColladaParameter new];
 		[texture setType: @"texture"];
 		[[texture params] setObject: [self parameterForUrl: [[element attributeForName: @"texture"] stringValue]] forKey: @"source"];
 		[[texture params] setObject: [[element attributeForName: @"texcoord"] stringValue] forKey: @"texcoord"];
@@ -865,6 +866,7 @@ static NSValue* colorFromXmlElement(NSXMLElement* element)
 	return material;
 }
 
+/*
 static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 {
 	assert(basepath && relurl);
@@ -887,7 +889,7 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 	}
 	return url;
 }
-
+*/
 - (id) loadImageFromXmlElement: (NSXMLElement*) element
 {
 	ColladaParameter* material = [self parameterForUrl: [[element attributeForName: @"id"] stringValue]];
@@ -918,7 +920,7 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 
 - (id) loadRotationFromXmlElement: (NSXMLElement*) element
 {
-	ColladaTransform* transform = [[[ColladaTransform alloc] init] autorelease];
+	ColladaTransform* transform = [[ColladaTransform alloc] init];
 	
 	NSMutableArray* array = [NSMutableArray array];
 	for (NSString* ae in [[[[element children] objectAtIndex: 0] stringValue] componentsSeparatedByString:@" "])
@@ -927,14 +929,14 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 			[array addObject: [NSNumber numberWithDouble: [ae doubleValue]]];
 	}
 	
-	[transform setTransform: [[[TransformNode alloc] initWithMatrix: mRotationMatrixAxisAngle(vCreateDir([[array objectAtIndex: 0] doubleValue],[[array objectAtIndex: 1] doubleValue],[[array objectAtIndex: 2] doubleValue]),[[array objectAtIndex: 3] doubleValue]*M_PI/180.0)] autorelease]];
+	[transform setTransform: [[GfxTransformNode alloc] initWithMatrix: mRotationMatrixAxisAngle(vCreateDir([[array objectAtIndex: 0] doubleValue],[[array objectAtIndex: 1] doubleValue],[[array objectAtIndex: 2] doubleValue]),[[array objectAtIndex: 3] doubleValue]*M_PI/180.0)]];
 	
 	return transform;
 }
 
 - (id) loadTranslationFromXmlElement: (NSXMLElement*) element
 {
-	ColladaTransform* transform = [[[ColladaTransform alloc] init] autorelease];
+	ColladaTransform* transform = [[ColladaTransform alloc] init];
 	
 	NSMutableArray* array = [NSMutableArray array];
 	for (NSString* ae in [[[[element children] objectAtIndex: 0] stringValue] componentsSeparatedByString:@" "])
@@ -943,14 +945,14 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 			[array addObject: [NSNumber numberWithDouble: [ae doubleValue]]];
 	}
 	
-	[transform setTransform: [[[TransformNode alloc] initWithMatrix: mTranslationMatrix(vCreateDir([[array objectAtIndex: 0] doubleValue],[[array objectAtIndex: 1] doubleValue],[[array objectAtIndex: 2] doubleValue]))] autorelease]];
+	[transform setTransform: [[GfxTransformNode alloc] initWithMatrix: mTranslationMatrix(vCreateDir([[array objectAtIndex: 0] doubleValue],[[array objectAtIndex: 1] doubleValue],[[array objectAtIndex: 2] doubleValue]))]];
 	
 	return transform;
 }
 
 - (id) loadScaleFromXmlElement: (NSXMLElement*) element
 {
-	ColladaTransform* transform = [[[ColladaTransform alloc] init] autorelease];
+	ColladaTransform* transform = [[ColladaTransform alloc] init];
 	
 	NSMutableArray* array = [NSMutableArray array];
 	for (NSString* ae in [[[[element children] objectAtIndex: 0] stringValue] componentsSeparatedByString:@" "])
@@ -959,14 +961,14 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 			[array addObject: [NSNumber numberWithDouble: [ae doubleValue]]];
 	}
 	
-	[transform setTransform: [[[TransformNode alloc] initWithMatrix: mScaleMatrix(vCreateDir([[array objectAtIndex: 0] doubleValue],[[array objectAtIndex: 1] doubleValue],[[array objectAtIndex: 2] doubleValue]))] autorelease]];
+	[transform setTransform: [[GfxTransformNode alloc] initWithMatrix: mScaleMatrix(vCreateDir([[array objectAtIndex: 0] doubleValue],[[array objectAtIndex: 1] doubleValue],[[array objectAtIndex: 2] doubleValue]))]];
 	
 	return transform;
 }
 
 - (id) loadMatrixFromXmlElement: (NSXMLElement*) element
 {
-	ColladaTransform* transform = [[[ColladaTransform alloc] init] autorelease];
+	ColladaTransform* transform = [[ColladaTransform alloc] init];
 	
 	NSMutableArray* array = [NSMutableArray array];
 	for (NSString* ae in [[[[element children] objectAtIndex: 0] stringValue] componentsSeparatedByString:@" "])
@@ -981,7 +983,7 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 		for (size_t j = 0; j < 4; ++j)
 			m.varr[j].farr[i] = [[array objectAtIndex: 4*i+j] doubleValue];
 
-	[transform setTransform: [[[TransformNode alloc] initWithMatrix: m] autorelease]];
+	[transform setTransform: [[GfxTransformNode alloc] initWithMatrix: m]];
 	
 	return transform;
 }
@@ -992,7 +994,7 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 	ColladaNode* node = [objectDict objectForKey: identifier];
 	if (!node)
 	{
-		node = [[[ColladaNode alloc] init] autorelease];
+		node = [[ColladaNode alloc] init];
 		[node setIdentifier: identifier];
 		[objectDict setObject: node forKey: identifier];
 	}
@@ -1095,7 +1097,7 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 		}
 	}
 	
-	GfxNode* gfxNode = [[[GfxNode alloc] init] autorelease];
+	GfxNode* gfxNode = [[GfxNode alloc] init];
 	[gfxNode setName: [node name]];
 
 	for (id child in children)
@@ -1111,7 +1113,7 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 
 - (id) loadSceneFromXmlElement: (NSXMLElement*) element
 {
-	scene = [[[ColladaScene alloc] init] autorelease];
+	scene = [[ColladaScene alloc] init];
 	[scene setIdentifier: [[element attributeForName: @"id"] stringValue]];
 	[objectDict setObject: scene forKey: [scene identifier]];
 
@@ -1136,7 +1138,7 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 		return nil;
 
 	NSError* err = nil;
-	NSXMLDocument* doc = [[[NSXMLDocument alloc] initWithContentsOfURL: [NSURL fileURLWithPath: path] options: NSXMLDocumentTidyXML error: &err] autorelease];
+	NSXMLDocument* doc = [[NSXMLDocument alloc] initWithContentsOfURL: [NSURL fileURLWithPath: path] options: NSXMLDocumentTidyXML error: &err];
 	
 	if (!doc)
 	{
@@ -1237,12 +1239,12 @@ static NSString* fullUrlWithBasePath(NSString* basepath, NSString* relurl)
 
 + (id) docFromResource: (NSString*) fname
 {
-	return [[[ColladaDoc alloc] initWithResource: fname] autorelease];
+	return [[ColladaDoc alloc] initWithResource: fname];
 }
 
 + (id) docFromPath: (NSString*) fname
 {
-	return [[[ColladaDoc alloc] initWithPath: fname] autorelease];
+	return [[ColladaDoc alloc] initWithPath: fname];
 }
 
 

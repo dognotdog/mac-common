@@ -156,9 +156,7 @@ void	_LogGLError(NSString* str);
 
 @interface ShadowMap : NSObject
 {
-//	matrix_t			lightProjectionMatrix;
 	GfxTexture*			shadowTexture;
-//	GLuint				shadowTexture;
 	int					width, height;
 	GfxFramebufferObject*	fbo;
 	GfxShader*			vizShader;
@@ -172,8 +170,6 @@ void	_LogGLError(NSString* str);
 - (void) bindShadowTexture;
 
 @property(nonatomic, readonly) GfxTexture* shadowTexture;
-//@property(readonly) GLSLShader* shader;
-//@property			matrix_t	lightProjectionMatrix;
 
 @end
 
@@ -195,6 +191,26 @@ void	_LogGLError(NSString* str);
 
 @end
 
+
+@interface GfxPolygonSettingsNode : NSObject
+{
+	BOOL cullingEnabled;
+	GLint frontFace, cullFace;
+	
+	BOOL polygonOffsetEnabled;
+	GLfloat polygonOffsetUnits, polygonOffsetFactor;
+	GLint polygonMode;
+}
+
+@property(nonatomic) BOOL cullingEnabled;
+@property(nonatomic) GLint frontFace;
+@property(nonatomic) GLint cullFace;
+@property(nonatomic) GLint polygonMode;
+@property(nonatomic) BOOL polygonOffsetEnabled;
+@property(nonatomic) GLfloat polygonOffsetUnits;
+@property(nonatomic) GLfloat polygonOffsetFactor;
+
+@end
 
 @interface SimpleMaterialNode : NSObject
 {
@@ -238,13 +254,13 @@ void	_LogGLError(NSString* str);
 - (void) addChild: (id) child;
 - (void) addChildrenFromArray: (NSArray*) array;
 
-- (id) nodalCopy;
+//- (id) nodalCopy;
 
 - (NSArray*) flattenToMeshes;
 
 - (id) firstChildNamed: (NSString*) cname;
 
-- (void) drawHierarchyWithState: (GfxStateStack*) state;
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) state;
 
 - (void) optimizeTransforms;
 

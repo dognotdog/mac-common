@@ -212,6 +212,29 @@ static inline ltvec_t bisectorVelocity(ltvec_t v0, ltvec_t v1, ltvec_t e0, ltvec
 	
 }
 
+static inline ltvec_t _hitTimes(ltvec_t p0, ltvec_t p1, ltvec_t v0, ltvec_t v1)
+{
+	if (ltEqual(p0,p1))
+		return ltVec(0.0, 0.0);
+
+	ltvec_t n0 = ltVec(v0.y, -v0.x);
+	ltvec_t n1 = ltVec(v1.y, -v1.x);
+
+	ltvec_t d = ltSub(p1, p0);
+	
+	ltvec_t d0 = ltProject(d, n1);
+	ltvec_t d1 = ltProject(ltScale(d, -1.0), n0);
+	
+	
+	double u0 = ltDot(v0, d0)/ltDot(d0, d0);
+	double u1 = ltDot(v1, d1)/ltDot(d1, d1);
+		
+	double t0 = 1.0/u0;
+	double t1 = 1.0/u1;
+	
+	return ltVec(t0, t1);
+}
+
 static inline double _computeCollapseTimeForFront(ltfront_t* front, ltspoke_t* spokes, ltvertex_t* vertices)
 {
 	assert(front->spokes[0] != -1);
