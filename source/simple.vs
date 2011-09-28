@@ -1,29 +1,34 @@
 #version 150
 
-in vec4 vertex;
-in vec4 normal;
-in vec4 texcoord0;
+in vec4 in_vertex;
+in vec3 in_normal;
+in vec4 in_color;
+in vec4 in_texcoord0;
+in vec4 in_texcoord1;
 
-in mat4 normalMatrix;
-in mat4 projectionMatrix;
-in mat4 mvpMatrix;
-in mat4 textureMatrix0;
+uniform mat4 normalMatrix;
+uniform mat4 projectionMatrix;
+uniform mat4 modelViewMatrix;
+uniform mat4 mvpMatrix;
+uniform mat4 textureMatrix0;
 
-out vec3 surfaceNormal;
-out vec4 vertexPos;
-out vec4 primaryColor;
-out vec4 tc0;
+out vec3 var_normal;
+out vec4 var_vertex;
+out vec4 var_color;
+out vec4 var_texcoord0;
+out vec4 var_texcoord1;
 
 void main()
 {
-	surfaceNormal = mat3(normalMatrix)*normal;
+	var_normal = mat3(normalMatrix)*in_normal;
 
-	vertexPos = modelViewMatrix*vertex;
+	var_vertex = modelViewMatrix*in_vertex;
 
-	tc0 = textureMatrix0 * texcoord0;
+	var_texcoord0 = textureMatrix0 * in_texcoord0;
+	var_texcoord1 = textureMatrix0 * in_texcoord1;
 	
-	primaryColor = color;
+	var_color = in_color;
 	
-	gl_Position = mvpMatrix*vertex;
+	gl_Position = mvpMatrix*in_vertex;
 
 }
