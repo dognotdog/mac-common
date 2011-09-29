@@ -15,6 +15,17 @@
 #import <OpenGL/gl3ext.h>
 
 @implementation LightmapTexture
+{
+	size_t sourceWidth, sourceHeight;
+	double xmin, xmax, ymin, ymax;
+	double xrot, yrot;
+	double xdiv, ydiv;
+	float minValue, maxValue;
+	float* sourceTexels;
+	float* linearTexels;
+	
+	GfxShader* vizShader;
+}
 
 struct lrec { int lo, hi; double t; };
 
@@ -175,19 +186,142 @@ struct lrec { int lo, hi; double t; };
     [self generateLinearizedValues];
 }
 
-
-- (id) initWithLightmapNamed: (NSString*) fileName filter: (BOOL) doFilter
+- (void) filterTexels
 {
-	self = [super init];
-	if (!self)
-		return nil;
+	float* filteredTexels = calloc(sizeof(float), sourceWidth*sourceHeight);
+	maxValue = 0.0;
+	minValue = INFINITY;
+	for (size_t i = 0; i < sourceHeight; ++i)
+	{
+		for (size_t j = 0; j < sourceWidth; ++j)
+		{
+			float fval = sourceTexels[i*sourceWidth + j];
+			if (i > 1)
+				fval += 0.333f*sourceTexels[(i-2)*sourceWidth + j];
+			if (i != 0)
+				fval += 0.667f*sourceTexels[(i-1)*sourceWidth + j];
+			if (i + 1 != sourceHeight)
+				fval += 0.667f*sourceTexels[(i+1)*sourceWidth + j];
+			if (i + 2 < sourceHeight)
+				fval += 0.333f*sourceTexels[(i+2)*sourceWidth + j];
+			fval = (1.0f/3.0f)*fval;
+			filteredTexels[i*sourceWidth + j] = fval;
+		}
+		
+	}
+	float* tmp = sourceTexels;
+	sourceTexels = filteredTexels;
+	filteredTexels = tmp;
+	for (size_t i = 0; i < sourceHeight; ++i)
+	{
+		for (size_t j = 0; j < sourceWidth; ++j)
+		{
+			float fval = sourceTexels[i*sourceWidth + j];
+			if (j > 1)
+				fval += 0.333f*sourceTexels[(i)*sourceWidth + j-2];
+			if (j != 0)
+				fval += 0.667f*sourceTexels[(i)*sourceWidth + j-1];
+			if (j + 1 != sourceWidth)
+				fval += 0.667f*sourceTexels[(i)*sourceWidth + j+1];
+			if (j + 2 < sourceWidth)
+				fval += 0.333f*sourceTexels[(i)*sourceWidth + j+2];
+			fval = (1.0f/3.0f)*fval;
+			filteredTexels[i*sourceWidth + j] = fval;
+			maxValue = fmaxf(maxValue, fval);
+			minValue = fminf(minValue, fval);
+		}
+		
+	}
+	free(sourceTexels);
+	sourceTexels = filteredTexels;
+}
+
+static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCharacterSet* cset)
+{
+	NSArray* _components = [string componentsSeparatedByCharactersInSet: cset];
+	NSMutableArray* ary = [NSMutableArray array];
+	for (NSString* str in _components)
+		if ([str length])
+			[ary addObject: str];
+	return ary;
+}
+
+- (BOOL) loadDIN: (NSString*) fString filter: (BOOL) doFilter
+{
+	NSArray* lines = nonEmptyComponentsSeparatedByCharacterSet(fString, [NSMutableCharacterSet characterSetWithCharactersInString: @"\r\n"]);
 	
-	vizShader = [[GfxShader alloc] initWithVertexShaderFile: @"lmpviz.vs" fragmentShaderFile: @"lmpviz.fs"];
+	NSMutableCharacterSet* linePaddingSet = [NSMutableCharacterSet whitespaceCharacterSet];
+	[linePaddingSet formUnionWithCharacterSet: [NSMutableCharacterSet letterCharacterSet]];
+	[linePaddingSet formUnionWithCharacterSet: [NSMutableCharacterSet characterSetWithCharactersInString: @"'\",/:;*+#=)(&%$§!{}[]"]];
 	
-	if (![fileName isAbsolutePath])
-		fileName = [[NSBundle mainBundle] pathForResource: fileName ofType: nil];
-	//	NSString* fString = [NSString stringWithContentsOfFile: fileName];
-	NSString* fString = [NSString stringWithContentsOfFile: fileName encoding: NSASCIIStringEncoding error: nil];
+	NSString* horizontalInfoLine = [[lines objectAtIndex: 2] stringByTrimmingCharactersInSet: linePaddingSet];
+	NSString* verticalInfoLine = [[lines objectAtIndex: 3] stringByTrimmingCharactersInSet: linePaddingSet];
+	
+	NSArray* horizontalInfo = nonEmptyComponentsSeparatedByCharacterSet(horizontalInfoLine, [NSCharacterSet whitespaceCharacterSet]);
+	NSArray* verticalInfo = nonEmptyComponentsSeparatedByCharacterSet(verticalInfoLine, [NSCharacterSet whitespaceCharacterSet]);
+	
+	xmin = -[[horizontalInfo objectAtIndex: 0] doubleValue];
+	xmax = -[[horizontalInfo objectAtIndex: 1] doubleValue];
+	sourceWidth = [[horizontalInfo objectAtIndex: 2] intValue];
+	double	hspan = xmax - xmin;
+	xdiv = hspan/(sourceWidth-1);
+	xrot = 
+
+	ymin = [[verticalInfo objectAtIndex: 0] doubleValue] - 90.0;
+	ymax = [[verticalInfo objectAtIndex: 1] doubleValue] - 90.0;
+	sourceHeight = [[verticalInfo objectAtIndex: 2] intValue];
+	double	vspan = ymax - ymin;
+	ydiv = vspan/(sourceHeight-1);
+
+	xrot = 0.5*((double)xmin + (double)xmax);
+	yrot = 0.5*((double)ymin + (double)ymax);
+	
+	xmin -= xrot;
+	xmax -= xrot;
+	ymin -= yrot;
+	ymax -= yrot;
+
+	NSMutableArray* values = [NSMutableArray arrayWithCapacity: sourceWidth*sourceHeight];
+	
+	for (NSString* line in [lines subarrayWithRange: NSMakeRange(5, [lines count]-5)])
+	{
+		NSArray* vals = nonEmptyComponentsSeparatedByCharacterSet(line, [NSMutableCharacterSet characterSetWithCharactersInString: @",  \t"]);
+
+		[values addObjectsFromArray: vals];
+	}
+	size_t entries = sourceWidth*sourceHeight;
+	assert([values count] == entries);
+
+	
+	
+	sourceTexels = calloc(sizeof(float), entries);
+	int i = 0;
+	maxValue = 0.0;
+	minValue = INFINITY;
+	
+	// values are ordered by column
+	for (id val in values)
+	{
+		float fval = [val floatValue]*(1.0/xdiv)*(1.0/ydiv);
+		
+		int col = i / sourceHeight;
+		int row = i % sourceHeight;
+		
+		sourceTexels[row*sourceWidth + col] = fval;
+		maxValue = fmaxf(maxValue, fval);
+		minValue = fminf(minValue, fval);
+		++i;
+	}
+
+	if (doFilter)
+		[self filterTexels];
+
+	return YES;
+}
+
+- (BOOL) loadLMP: (NSString*) fString filter: (BOOL) doFilter
+{
+	
 	NSArray* pvalues = [fString componentsSeparatedByCharactersInSet: [NSCharacterSet whitespaceAndNewlineCharacterSet]];
 	NSArray* values = [NSMutableArray array];
 	for (id val in pvalues)
@@ -196,16 +330,15 @@ struct lrec { int lo, hi; double t; };
 	
 	if ([values count] < 8)
 	{
-		NSLog(@"LMP: not enough entries in file %@.", fileName);
-		return nil;
+		NSLog(@"LMP: not enough entries in file %@.", name);
+		return NO;
 	}
 	
-	name = [fileName copy];
 	
-	xmin = [[values objectAtIndex: 1] intValue];
-	xmax = [[values objectAtIndex: 2] intValue];
-	ymax = [[values objectAtIndex: 3] intValue];
-	ymin = [[values objectAtIndex: 4] intValue];
+	xmin = [[values objectAtIndex: 1] doubleValue];
+	xmax = [[values objectAtIndex: 2] doubleValue];
+	ymax = [[values objectAtIndex: 3] doubleValue];
+	ymin = [[values objectAtIndex: 4] doubleValue];
 	xdiv = [[values objectAtIndex: 5] doubleValue];
 	ydiv = [[values objectAtIndex: 6] doubleValue];
 	
@@ -227,7 +360,7 @@ struct lrec { int lo, hi; double t; };
 	//	NSLog(@"LMP %zd,%d", entries, [values count]-7);
 	if (!([values count]+7 > entries))
 	{
-		return nil;
+		return NO;
 	}
 	
 	
@@ -253,53 +386,42 @@ struct lrec { int lo, hi; double t; };
 	}
 	
 	if (doFilter)
+		[self filterTexels];
+	
+	
+	return YES;
+}
+
+- (id) initWithLightmapNamed: (NSString*) fileName filter: (BOOL) doFilter
+{
+	self = [super init];
+	if (!self)
+		return nil;
+	
+	vizShader = [[GfxShader alloc] initWithVertexShaderFile: @"lmpviz.vs" fragmentShaderFile: @"lmpviz.fs"];
+	
+	if (![fileName isAbsolutePath])
+		fileName = [[NSBundle mainBundle] pathForResource: fileName ofType: nil];
+
+	name = [fileName copy];
+
+	
+	NSString* fString = [NSString stringWithContentsOfFile: fileName encoding: NSASCIIStringEncoding error: nil];
+	
+	if ([[fileName pathExtension] caseInsensitiveCompare: @"lmp"] == NSOrderedSame)
 	{
-		float* filteredTexels = calloc(sizeof(float), entries);
-		maxValue = 0.0;
-		minValue = INFINITY;
-		for (size_t i = 0; i < sourceHeight; ++i)
-		{
-			for (size_t j = 0; j < sourceWidth; ++j)
-			{
-				float fval = sourceTexels[i*sourceWidth + j];
-				if (i > 1)
-					fval += 0.333f*sourceTexels[(i-2)*sourceWidth + j];
-				if (i != 0)
-					fval += 0.667f*sourceTexels[(i-1)*sourceWidth + j];
-				if (i + 1 != sourceHeight)
-					fval += 0.667f*sourceTexels[(i+1)*sourceWidth + j];
-				if (i + 2 < sourceHeight)
-					fval += 0.333f*sourceTexels[(i+2)*sourceWidth + j];
-				fval = (1.0f/3.0f)*fval;
-				filteredTexels[i*sourceWidth + j] = fval;
-			}
-			
-		}
-		float* tmp = sourceTexels;
-		sourceTexels = filteredTexels;
-		filteredTexels = tmp;
-		for (size_t i = 0; i < sourceHeight; ++i)
-		{
-			for (size_t j = 0; j < sourceWidth; ++j)
-			{
-				float fval = sourceTexels[i*sourceWidth + j];
-				if (j > 1)
-					fval += 0.333f*sourceTexels[(i)*sourceWidth + j-2];
-				if (j != 0)
-					fval += 0.667f*sourceTexels[(i)*sourceWidth + j-1];
-				if (j + 1 != sourceWidth)
-					fval += 0.667f*sourceTexels[(i)*sourceWidth + j+1];
-				if (j + 2 < sourceWidth)
-					fval += 0.333f*sourceTexels[(i)*sourceWidth + j+2];
-				fval = (1.0f/3.0f)*fval;
-				filteredTexels[i*sourceWidth + j] = fval;
-				maxValue = fmaxf(maxValue, fval);
-				minValue = fminf(minValue, fval);
-			}
-			
-		}
-		free(sourceTexels);
-		sourceTexels = filteredTexels;
+		if (![self loadLMP: fString filter: doFilter])
+			return nil;
+	}
+	else if ([[fileName pathExtension] caseInsensitiveCompare: @"din"] == NSOrderedSame)
+	{
+		if (![self loadDIN: fString filter: doFilter])
+			return nil;
+	}
+	else
+	{
+		NSLog(@"unknown file extension for lightmap: %@", fileName);
+		return nil;
 	}
 	
 	//	NSLog(@"LMP min %f max %f", minValue, maxValue);
@@ -307,7 +429,6 @@ struct lrec { int lo, hi; double t; };
 	
 	//[self generateLinearizedValues];
     
-    LogGLError(@"end");
 	
 	return self;
 }

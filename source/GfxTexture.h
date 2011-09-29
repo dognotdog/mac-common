@@ -71,17 +71,6 @@
 @end
 
 @interface LightmapTexture : GfxTexture
-{
-	size_t sourceWidth, sourceHeight;
-	int xmin, xmax, ymin, ymax;
-	double xrot, yrot;
-	double xdiv, ydiv;
-	float minValue, maxValue;
-	float* sourceTexels;
-	float* linearTexels;
-	
-	GfxShader* vizShader;
-}
 
 - (double) aspectRatio;
 - (double) verticalFOV;
