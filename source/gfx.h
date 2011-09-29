@@ -80,6 +80,7 @@ void	_LogGLError(NSString* str);
 - (void) setNormals: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
 - (void) setColors: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
 - (void) setTexCoords: (vector_t*) v count: (size_t) c copy: (BOOL) doCopy;
+- (void) setIndices: (uint32_t*) v count: (size_t) c copy: (BOOL) doCopy;
 
 - (void) addVertices: (vector_t*) v count: (size_t) c;
 - (void) addNormals: (vector_t*) v count: (size_t) c;

@@ -396,6 +396,25 @@ static int _extension_supported(const char *extension)
     dirtyTexCoords.length = numTexCoords;
 }
 
+- (void) setIndices: (uint32_t*) v count: (size_t) c copy: (BOOL) doCopy
+{
+	if (doCopy)
+	{
+		indices = realloc(indices, sizeof(*indices)*(c));
+		memcpy(indices, v, (sizeof(*indices)*c));
+	}
+	else
+	{
+		if (indices)
+			free(indices);
+		indices = v;
+	}
+	
+	numIndices = c;
+    dirtyIndices = NSMakeRange(0, numIndices);
+}
+
+
 - (void) addVertices: (vector_t*) v count: (size_t) c
 {
 	vertices = realloc(vertices, sizeof(vector_t)*(numVertices+c));
