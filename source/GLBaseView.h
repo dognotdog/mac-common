@@ -30,6 +30,9 @@ typedef struct __CVDisplayLink *CVDisplayLinkRef;
 	unsigned long	frameCount;
 }
 
+- (void) captureMouse;
+- (void) releaseMouse;
+
 - (void) update;
 
 - (void) reshape;
