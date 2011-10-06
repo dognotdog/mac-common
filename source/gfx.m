@@ -303,6 +303,8 @@ static int _extension_supported(const char *extension)
 		[GfxResourceDisposal disposeOfResourcesWithTypes: normalBuffer, GFX_RESOURCE_VBO, NULL];
 	if (texCoordBuffer)
 		[GfxResourceDisposal disposeOfResourcesWithTypes: texCoordBuffer, GFX_RESOURCE_VBO, NULL];
+	if (colorBuffer)
+		[GfxResourceDisposal disposeOfResourcesWithTypes: colorBuffer, GFX_RESOURCE_VBO, NULL];
 	if (indexBuffer)
 		[GfxResourceDisposal disposeOfResourcesWithTypes: indexBuffer, GFX_RESOURCE_VBO, NULL];
 			
