@@ -8,6 +8,9 @@
 
 #import <Foundation/Foundation.h>
 
-@interface HIDManager : NSObject
+@interface HIDManager : NSObject <NSTableViewDelegate, NSTableViewDataSource>
+
+@property(strong) IBOutlet NSWindow* controlWindow;
+@property(strong) IBOutlet NSTableView* controlsTable;
 
 @end
