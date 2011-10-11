@@ -211,11 +211,12 @@
             if ((tmp=glGetUniformLocation(shader.glName, [[NSString stringWithFormat: @"textureMatrix%d", i] UTF8String])) != -1)
                 glUniformMatrix4(tmp, textureMatrix[i]);
 		}
+/*
     LogGLError(@"uniforms submitted.1");
 	if (shaderChanged || FLAGCHANGED(lightPosFlags))
         if ((tmp=glGetUniformLocation(shader.glName, "lightPos")) != -1)
             glUniformVector4(tmp, lightPos);
-
+*/
     LogGLError(@"uniforms submitted");
 
 	
