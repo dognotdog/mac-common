@@ -235,6 +235,60 @@ static inline ltvec_t _hitTimes(ltvec_t p0, ltvec_t p1, ltvec_t v0, ltvec_t v1)
 	return ltVec(t0, t1);
 }
 
+static inline int _estimatePenetration(ltvec_t q, ltvec_t r, double tr, ltvec_t p0, ltvec_t p1, ltvec_t r0, ltvec_t r1, double tr0, double tr1, double tmax)
+{
+	ltvec_t e2 = ltSub(p1, p0);
+	ltvec_t e3 = ltSub(ltAdd(p1, ltScale(r1, tmax)), ltAdd(p0, ltScale(r0, tmax)));
+	ltvec_t planes[4][2] = {
+		{p0, ltVec(-r0.y, r0.x)},
+		{p1, ltVec(r0.y, -r0.x)},
+		{p0, ltVec(e2.y, -e2.x)},
+		{ltAdd(p0, ltScale(r0, tmax)), ltVec(e3.y, -e3.x) }
+	};
+	
+	double tx[4] = {INFINITY, INFINITY, INFINITY, INFINITY};
+	double startSign[4] = {0, 0, 0, 0};
+
+	for (int i = 0; i < 4; ++i)
+	{
+		ltvec_t p = planes[i][0];
+		ltvec_t n = planes[i][1];
+		
+		ltvec_t d = ltSub(p, q);
+		ltvec_t dn = ltProject(d, n);
+		
+		startSign[i] = ltDot(d, n);
+		
+		double t = ltDot(dn, dn)/ltDot(r, dn);
+		if (isnormal(t))
+			tx[i] = t;
+		else
+			tx[i] = NAN;
+	}
+
+	double tin = -INFINITY, tout = INFINITY;
+	int whichPlane = -1;
+	
+	for (int i = 0; i < 4; ++i)
+	{
+		if (isnormal(tx[i]))
+		{
+			if (startSign[i] > 0.0)
+				tin = MAX(tin, tx[i]);
+			else if (startSign[i] < 0.0)
+				tout = MIN(tout, tx[i]);
+			else
+				assert(0 && "oh shit");
+		}
+		else
+		{
+			if (startSign[i] >= 0.0)
+				tin = INFINITY;
+		}
+	}
+
+}
+
 static inline double _computeCollapseTimeForFront(ltfront_t* front, ltspoke_t* spokes, ltvertex_t* vertices)
 {
 	assert(front->spokes[0] != -1);
