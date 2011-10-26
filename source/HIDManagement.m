@@ -9,13 +9,340 @@
 #import "HIDManagement.h"
 
 #import <IOKit/hid/IOHIDLib.h>
+#import <IOKit/usb/IOUSBLib.h>
+#import <IOKit/IOCFPlugIn.h>
+#import <mach/mach.h>
+#import <CoreFoundation/CFNumber.h>
+
+io_service_t			g27DeviceRef = 0;
+
+IOReturn FindInterfaces(IOUSBDeviceInterface **device)
+{
+    IOReturn                    kr;
+    IOUSBFindInterfaceRequest   request;
+    io_iterator_t               iterator;
+    io_service_t                usbInterface;
+    IOCFPlugInInterface         **plugInInterface = NULL;
+    IOUSBInterfaceInterface     **interface = NULL;
+    HRESULT                     result;
+    SInt32                      score;
+    UInt8                       interfaceClass;
+    UInt8                       interfaceSubClass;
+    UInt8                       interfaceNumEndpoints;
+    int                         pipeRef;
+	
+    UInt32                      numBytesRead;
+    UInt32                      i;
+	
+    //Placing the constant kIOUSBFindInterfaceDontCare into the following
+    //fields of the IOUSBFindInterfaceRequest structure will allow you
+    //to find all the interfaces
+    request.bInterfaceClass = kIOUSBFindInterfaceDontCare;
+    request.bInterfaceSubClass = kIOUSBFindInterfaceDontCare;
+    request.bInterfaceProtocol = kIOUSBFindInterfaceDontCare;
+    request.bAlternateSetting = kIOUSBFindInterfaceDontCare;
+	
+    //Get an iterator for the interfaces on the device
+    kr = (*device)->CreateInterfaceIterator(device,
+											&request, &iterator);
+    while (usbInterface = IOIteratorNext(iterator))
+    {
+        //Create an intermediate plug-in
+        kr = IOCreatePlugInInterfaceForService(usbInterface,
+											   kIOUSBInterfaceUserClientTypeID,
+											   kIOCFPlugInInterfaceID,
+											   &plugInInterface, &score);
+        //Release the usbInterface object after getting the plug-in
+        kr = IOObjectRelease(usbInterface);
+        if ((kr != kIOReturnSuccess) || !plugInInterface)
+        {
+            printf("Unable to create a plug-in (%08x)\n", kr);
+            break;
+        }
+		
+        //Now create the device interface for the interface
+        result = (*plugInInterface)->QueryInterface(plugInInterface,
+													CFUUIDGetUUIDBytes(kIOUSBInterfaceInterfaceID),
+													(LPVOID *) &interface);
+        //No longer need the intermediate plug-in
+        (*plugInInterface)->Release(plugInInterface);
+		
+        if (result || !interface)
+        {
+            printf("Couldn’t create a device interface for the interface (%08x)\n", (int) result);
+				   break;
+				   }
+				   
+				   //Get interface class and subclass
+				   kr = (*interface)->GetInterfaceClass(interface,
+														&interfaceClass);
+				   kr = (*interface)->GetInterfaceSubClass(interface,
+														   &interfaceSubClass);
+				   
+				   printf("Interface class %d, subclass %d\n", interfaceClass,
+						  interfaceSubClass);
+				   
+				   //Now open the interface. This will cause the pipes associated with
+				   //the endpoints in the interface descriptor to be instantiated
+				   kr = (*interface)->USBInterfaceOpen(interface);
+				   if (kr != kIOReturnSuccess)
+				   {
+					   printf("Unable to open interface (%08x)\n", kr);
+					   (void) (*interface)->Release(interface);
+					   continue;
+				   }
+				   
+				   //Get the number of endpoints associated with this interface
+				   kr = (*interface)->GetNumEndpoints(interface,
+													  &interfaceNumEndpoints);
+				   if (kr != kIOReturnSuccess)
+				   {
+					   printf("Unable to get number of endpoints (%08x)\n", kr);
+					   (void) (*interface)->USBInterfaceClose(interface);
+					   (void) (*interface)->Release(interface);
+					   continue;
+				   }
+				   
+				   printf("Interface has %d endpoints\n", interfaceNumEndpoints);
+				   //Access each pipe in turn, starting with the pipe at index 1
+				   //The pipe at index 0 is the default control pipe and should be
+				   //accessed using (*usbDevice)->DeviceRequest() instead
+				   for (pipeRef = 1; pipeRef <= interfaceNumEndpoints; pipeRef++)
+				   {
+					   IOReturn        kr2;
+					   UInt8           direction;
+					   UInt8           number;
+					   UInt8           transferType;
+					   UInt16          maxPacketSize;
+					   UInt8           interval;
+					   char            *message;
+					   
+					   kr2 = (*interface)->GetPipeProperties(interface,
+															 pipeRef, &direction,
+															 &number, &transferType,
+															 &maxPacketSize, &interval);
+					   if (kr2 != kIOReturnSuccess)
+						   printf("Unable to get properties of pipe %d (%08x)\n",
+								  pipeRef, kr2);
+					   else
+					   {
+						   printf("PipeRef %d: ", pipeRef);
+						   switch (direction)
+						   {
+							   case kUSBOut:
+								   message = "out";
+								   break;
+							   case kUSBIn:
+								   message = "in";
+								   break;
+							   case kUSBNone:
+								   message = "none";
+								   break;
+							   case kUSBAnyDirn:
+								   message = "any";
+								   break;
+							   default:
+								   message = "???";
+						   }
+						   printf("direction %s, ", message);
+						   
+						   switch (transferType)
+						   {
+							   case kUSBControl:
+								   message = "control";
+								   break;
+							   case kUSBIsoc:
+								   message = "isoc";
+								   break;
+							   case kUSBBulk:
+								   message = "bulk";
+								   break;
+							   case kUSBInterrupt:
+								   message = "interrupt";
+								   break;
+							   case kUSBAnyType:
+								   message = "any";
+								   break;
+							   default:
+								   message = "???";
+						   }
+						   printf("transfer type %s, maxPacketSize %d\n", message,
+								  maxPacketSize);
+					   }
+				   }
+#if 0
+		
+				char* kTestMessage = "0";
+				   
+				   kr = (*interface)->WritePipe(interface, 2, kTestMessage,
+												strlen(kTestMessage));
+				   if (kr != kIOReturnSuccess)
+				   {
+					   printf("Unable to perform bulk write (%08x)\n", kr);
+					   (void) (*interface)->USBInterfaceClose(interface);
+					   (void) (*interface)->Release(interface);
+					   continue;
+				   }
+				   
+				   printf("Wrote \"%s\" (%ld bytes) to bulk endpoint\n", kTestMessage,
+						   strlen(kTestMessage));
+				   
+				   numBytesRead = sizeof(gBuffer) - 1; //leave one byte at the end
+				   //for NULL termination
+				   kr = (*interface)->ReadPipe(interface, 9, gBuffer,
+											   &numBytesRead);
+				   if (kr != kIOReturnSuccess)
+				   {
+					   printf("Unable to perform bulk read (%08x)\n", kr);
+					   (void) (*interface)->USBInterfaceClose(interface);
+					   (void) (*interface)->Release(interface);
+					   continue;
+				   }
+				   
+				   //Because the downloaded firmware echoes the one’s complement of the
+				   //message, now complement the buffer contents to get the original data
+				   for (i = 0; i < numBytesRead; i++)
+				   gBuffer[i] = ~gBuffer[i];
+				   
+				   printf("Read \"%s\" (%ld bytes) from bulk endpoint\n", gBuffer,
+						  numBytesRead);
+#endif				   
+	}
+	return kr;
+}
+
+							  
+IOReturn WriteToDevice(IOUSBDeviceInterface **dev, UInt16 deviceAddress,
+					   UInt16 length, UInt8 writeBuffer[])
+{
+    IOUSBDevRequest     request;
+	
+    request.bmRequestType = USBmakebmRequestType(kUSBOut, kUSBVendor,
+												 kUSBDevice);
+    request.bRequest = 0xa0;
+    request.wValue = deviceAddress;
+    request.wIndex = 0;
+    request.wLength = length;
+    request.pData = writeBuffer;
+	
+    return (*dev)->DeviceRequest(dev, &request);
+}
+
+int USBSetup(void)
+{
+	SInt32			idVendor = 0x046D;
+	SInt32			idProduct = 0xC294;
+	mach_port_t 	masterPort = 0;				// requires <mach/mach.h>
+
+	io_iterator_t			iterator = 0;
+	io_service_t			usbDeviceRef = 0;
+	
+	kern_return_t			err = 0;
+    
+    err = IOMasterPort(MACH_PORT_NULL, &masterPort);				
+    if (err)
+    {
+        printf("USBSimpleExample: could not create master port, err = %08x\n", err);
+        return err;
+    }
+    NSMutableDictionary* matchingDictionary = (__bridge_transfer id)IOServiceMatching(kIOUSBDeviceClassName);	// requires <IOKit/usb/IOUSBLib.h>
+    if (!matchingDictionary)
+    {
+        printf("USBSimpleExample: could not create matching dictionary\n");
+        return -1;
+    }
+	[matchingDictionary setObject: [NSNumber numberWithInt: idVendor] forKey: (__bridge id)CFSTR(kUSBVendorID)];
+	[matchingDictionary setObject: [NSNumber numberWithInt: idProduct] forKey: (__bridge id)CFSTR(kUSBProductID)];
+    
+    err = IOServiceGetMatchingServices(masterPort, (__bridge_retained void*) matchingDictionary, &iterator);
+    
+    if ( (usbDeviceRef = IOIteratorNext(iterator)) )
+    {
+		printf("*** Found G27 wheel in compatibility mode: 0x%X\n", usbDeviceRef);
+		g27DeviceRef = usbDeviceRef;
+    }
+    
+    if (iterator != g27DeviceRef)
+		IOObjectRelease(iterator);
+    iterator = 0;
+	
+	
+	if (g27DeviceRef)
+	{
+		IOReturn						err;
+		IOCFPlugInInterface				**iodev = NULL;		// requires <IOKit/IOCFPlugIn.h>
+		IOUSBDeviceInterface			**dev = NULL;
+		SInt32							score = 0;
+		UInt8							numConf = 0;
+		IOUSBConfigurationDescriptorPtr	confDesc;
+		
+		err = IOCreatePlugInInterfaceForService(g27DeviceRef, kIOUSBDeviceUserClientTypeID, kIOCFPlugInInterfaceID, &iodev, &score);
+		if (err || !iodev)
+		{
+			printf("dealWithDevice: unable to create plugin. ret = %08x, iodev = %p\n", err, iodev);
+			return -1;
+		}
+		err = (*iodev)->QueryInterface(iodev, CFUUIDGetUUIDBytes(kIOUSBDeviceInterfaceID), (LPVOID)&dev);
+		IODestroyPlugInInterface(iodev);				// done with this
+		
+		if (err || !dev)
+		{
+			printf("dealWithDevice: unable to create a device interface. ret = %08x, dev = %p\n", err, dev);
+			return -1;
+		}
+		err = (*dev)->USBDeviceOpen(dev);
+		if (err)
+		{
+			printf("dealWithDevice: unable to open device. ret = %08x\n", err);
+			return -1;
+		}
+		err = (*dev)->GetNumberOfConfigurations(dev, &numConf);	// ftdi device should only have one configuration
+		if (err || !numConf)
+		{
+			printf("dealWithDevice: unable to obtain the number of configurations. ret = %08x\n", err);
+			(*dev)->USBDeviceClose(dev);
+			(*dev)->Release(dev);
+			return -1;
+		}
+		printf("dealWithDevice: found %d configurations\n", numConf);
+		err = (*dev)->GetConfigurationDescriptorPtr(dev, 0, &confDesc);			// get the first config desc (index 0)
+		if (err)
+		{
+			printf("dealWithDevice:unable to get config descriptor for index 0\n");
+			(*dev)->USBDeviceClose(dev);
+			(*dev)->Release(dev);
+			return -1;
+		}
+		err = (*dev)->SetConfiguration(dev, confDesc->bConfigurationValue);
+		if (err)
+		{
+			printf("dealWithDevice: unable to set the configuration\n");
+			(*dev)->USBDeviceClose(dev);
+			(*dev)->Release(dev);
+			return -1;
+		}
+		
+		FindInterfaces(dev);
+		
+		
+		(*dev)->USBDeviceClose(dev);
+		(*dev)->Release(dev);
+	}
+    
+    return 0;
+}
+
 
 @interface HIDManager (Private)
 - (void) initHID;
+- (void) initUSB;
 
 - (void) inputValueResult: (IOReturn) inResult sender: (void*) inSender value: (IOHIDValueRef) inValue;
 
 @end
+
+static NSDictionary* _flatElementList(IOHIDDeviceRef device);
+
 
 static NSDictionary* _usageNameDict(void)
 {
@@ -63,6 +390,7 @@ static void _InputValueCallback(void *inContext, IOReturn inResult, void *inSend
 	
 	NSMutableArray*			deviceList;
 	NSMutableDictionary*	elementValuesPerDevice;
+	NSMutableDictionary*	elementsPerDevice;
 	
 	NSWindow*		controlWindow;
 	NSTableView*	controlsTable;
@@ -77,13 +405,21 @@ static void _InputValueCallback(void *inContext, IOReturn inResult, void *inSend
 
 	deviceList = [NSMutableArray array];
 	elementValuesPerDevice = [NSMutableDictionary dictionary];
+	elementsPerDevice = [NSMutableDictionary dictionary];
 
-	[self initHID];
+	[self initUSB];
+
+//	[self initHID];
 	
 	[NSBundle loadNibNamed: @"HIDControlWindow" owner: self];
 	[controlWindow makeKeyAndOrderFront: self];
 	
     return self;
+}
+
+- (void) initUSB
+{
+	USBSetup();
 }
 
 static NSString* _elementTypeToString(IOHIDElementType type)
@@ -143,7 +479,7 @@ static void _logElements(NSArray* elements)
 	id primaryUsagePage = (__bridge_transfer id)IOHIDDeviceGetProperty(device, CFSTR( kIOHIDPrimaryUsagePageKey));
 	//kHIDUsage_GD_Mouse
 	
-	NSLog(@"Device matched: %@ %@ %@ %@ %@ %@ %@", productId, product, vendorId, manufacturer, usage, primaryUsagePage, primaryUsage);
+	NSLog(@"Device matched: 0x%X %@ 0x%X %@ %@ %@ %@", [productId intValue], product, [vendorId intValue], manufacturer, usage, primaryUsagePage, primaryUsage);
 //	NSLog(@"[device description] = %@", [(__bridge id)device description]);
 	
 	IOHIDDeviceRegisterInputValueCallback(device, _InputValueCallback,  (__bridge void*)self);
@@ -154,6 +490,7 @@ static void _logElements(NSArray* elements)
 	
 	[deviceList addObject: (__bridge id)device];
 	[elementValuesPerDevice setObject: [NSMutableDictionary dictionary] forKey: [NSValue valueWithPointer: device]];
+	[elementsPerDevice setObject: _flatElementList(device) forKey: [NSValue valueWithPointer: device]];
 	
 	[controlsTable reloadData];
 		
@@ -252,13 +589,18 @@ static const __unsafe_unretained NSString* IOHIDDeviceUsagePageKey = (__bridge N
 	assert(valuesDict);
 	
 	long val = IOHIDValueGetIntegerValue(inValue);
-	
-	[valuesDict setObject: [NSNumber numberWithLong: val] forKey: [NSNumber numberWithUnsignedInt: cookie]];
+	id elementKey = [NSNumber numberWithUnsignedInt: cookie];
+	[valuesDict setObject: [NSNumber numberWithLong: val] forKey: elementKey];
 	
 	uint32_t usagePage = IOHIDElementGetUsagePage(element);
 	uint32_t usage = IOHIDElementGetUsage(element);
-	NSLog(@"  usage  (0x%X,0x%X)   = %@", usagePage, usage, _usageToString(usagePage, usage));
-	
+	NSLog(@" %d,%p usage  (0x%X,0x%X)   = %@", (int)cookie, element, usagePage, usage, _usageToString(usagePage, usage));
+	NSLog(@" device                     = %p", device);
+
+	NSDictionary* elements = [elementsPerDevice objectForKey: deviceKey];
+	NSArray* keys = [[elements allKeys] sortedArrayUsingSelector: @selector(compare:)];
+
+	[controlsTable reloadDataForRowIndexes: [NSIndexSet indexSetWithIndex: [keys indexOfObject: elementKey]] columnIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(1, 2)]];
 }
 
 static NSArray* _flattenedChildren(NSArray* elements)
@@ -296,17 +638,20 @@ static NSDictionary* _flatElementList(IOHIDDeviceRef device)
 {
 	if (![deviceList count])
 		return 0;
-	NSDictionary* elements = _flatElementList((__bridge void*)[deviceList objectAtIndex: 0]);
+
+	id deviceKey = [NSValue valueWithPointer: (__bridge void*)[deviceList objectAtIndex: 0]];
+	NSDictionary* elements = [elementsPerDevice objectForKey: deviceKey];
 
 	return [elements count]; 
 }
 
 - (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
 {
-	NSDictionary* elements = _flatElementList((__bridge void*)[deviceList objectAtIndex: 0]);
+	id deviceKey = [NSValue valueWithPointer: (__bridge void*)[deviceList objectAtIndex: 0]];
+	NSDictionary* elements = [elementsPerDevice objectForKey: deviceKey];
 	NSArray* keys = [[elements allKeys] sortedArrayUsingSelector: @selector(compare:)];
 	
-	NSDictionary* valuesDict = [elementValuesPerDevice objectForKey: [NSValue valueWithPointer: (__bridge void*)[deviceList objectAtIndex: 0]]];
+	NSDictionary* valuesDict = [elementValuesPerDevice objectForKey: deviceKey];
 	
 	id element = [elements objectForKey: [keys objectAtIndex: row]];
 	IOHIDElementCookie cookie = IOHIDElementGetCookie((__bridge void*)element);
@@ -316,18 +661,68 @@ static NSDictionary* _flatElementList(IOHIDDeviceRef device)
 			return [keys objectAtIndex: row];
 		case 1:
 			return [valuesDict objectForKey: [NSNumber numberWithLong: cookie]];
+		case 2:
+			return [valuesDict objectForKey: [NSNumber numberWithLong: cookie]];
 		case 3:
 			return [NSNumber numberWithLong: IOHIDElementGetLogicalMin((__bridge void*)element)];
 		case 4:
 			return [NSNumber numberWithLong: IOHIDElementGetLogicalMax((__bridge void*)element)];
+		case 5:
+			return _elementTypeToString(IOHIDElementGetType((__bridge void*)element));
 			
 		default:
 			return @"???";
 	}
 }
 
+- (void) tableView:(NSTableView *)tableView willDisplayCell:(id)cell forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
+{
+	switch ([[tableColumn identifier] intValue])
+	{
+		case 2:
+		{
+			id deviceKey = [NSValue valueWithPointer: (__bridge void*)[deviceList objectAtIndex: 0]];
+			NSDictionary* elements = [elementsPerDevice objectForKey: deviceKey];
+			NSArray* keys = [[elements allKeys] sortedArrayUsingSelector: @selector(compare:)];
+			
+			
+			id element = [elements objectForKey: [keys objectAtIndex: row]];
+			
+			NSSliderCell* sliderCell = cell;
+			[sliderCell setMinValue: IOHIDElementGetPhysicalMin((__bridge void*)element)];
+			[sliderCell setMaxValue: IOHIDElementGetPhysicalMax((__bridge void*)element)];
+			
+			
+			break;
+		}
+		default:
+			break;
+	}
+}
+
+- (void)tableView:(NSTableView *)tableView setObjectValue:(id)object forTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
+{
+	
+}
+
 - (BOOL)tableView:(NSTableView *)tableView shouldEditTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
 {
+	id deviceKey = [NSValue valueWithPointer: (__bridge void*)[deviceList objectAtIndex: 0]];
+	NSDictionary* elements = [elementsPerDevice objectForKey: deviceKey];
+	NSArray* keys = [[elements allKeys] sortedArrayUsingSelector: @selector(compare:)];
+		
+	id element = [elements objectForKey: [keys objectAtIndex: row]];
+
+	IOHIDElementType type = IOHIDElementGetType((__bridge void*)element);
+
+	switch ([[tableColumn identifier] intValue])
+	{
+		case 3:
+		case 4:
+			return (type == kIOHIDElementTypeFeature) || (type == kIOHIDElementTypeOutput);
+		default:
+			return NO;
+	}
 	return NO;
 }
 
