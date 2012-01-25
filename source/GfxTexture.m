@@ -178,6 +178,25 @@ struct lrec { int lo, hi; double t; };
 	
 }
 
+- (void) uploadSourceTexels
+{
+	if (!textureName)
+        glGenTextures (1, &textureName);
+	
+	//	NSLog(@"LMP texId %d", texId);
+	//	NSLog(@"LMP min max %f %f", lmin, lmax);
+	glBindTexture (GL_TEXTURE_2D, textureName); 
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, sourceWidth, sourceHeight, 0, GL_RED, GL_FLOAT, sourceTexels);
+
+}
+
 - (void) generateGLTexture
 {
 	if (!textureName)
@@ -246,6 +265,86 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 	return ary;
 }
 
+- (BOOL) loadIES: (NSString*) fString filter: (BOOL) doFilter
+{
+	NSArray* lines = nonEmptyComponentsSeparatedByCharacterSet(fString, [NSMutableCharacterSet characterSetWithCharactersInString: @"\r\n"]);
+	
+	NSMutableCharacterSet* linePaddingSet = [NSMutableCharacterSet whitespaceCharacterSet];
+	[linePaddingSet formUnionWithCharacterSet: [NSMutableCharacterSet letterCharacterSet]];
+	[linePaddingSet formUnionWithCharacterSet: [NSMutableCharacterSet characterSetWithCharactersInString: @"'\",/:;*+#=)(&%$§!{}[]"]];
+	
+	NSString* gridCountInfoLine = [[lines objectAtIndex: 3] stringByTrimmingCharactersInSet: linePaddingSet];
+	NSString* verticalCountString = [[gridCountInfoLine componentsSeparatedByCharactersInSet: linePaddingSet] objectAtIndex: 0];
+	NSString* horizontalCountString = [[gridCountInfoLine componentsSeparatedByCharactersInSet: linePaddingSet] objectAtIndex: 1];
+
+	sourceWidth = [horizontalCountString intValue];
+	sourceHeight = [verticalCountString intValue];
+	
+	
+	NSMutableArray* values = [NSMutableArray arrayWithCapacity: sourceWidth*sourceHeight + sourceWidth + sourceHeight];
+	
+	for (NSString* line in [lines subarrayWithRange: NSMakeRange(7, [lines count]-7)])
+	{
+		NSArray* vals = nonEmptyComponentsSeparatedByCharacterSet(line, [NSMutableCharacterSet characterSetWithCharactersInString: @",  \t"]);
+		
+		[values addObjectsFromArray: vals];
+	}
+	size_t entries = sourceWidth*sourceHeight;
+	assert([values count] == entries + sourceWidth + sourceHeight);
+	
+	NSArray* vGridArray = [values subarrayWithRange: NSMakeRange(0, sourceHeight)];
+	NSArray* hGridArray = [values subarrayWithRange: NSMakeRange(sourceHeight, sourceWidth)];
+	
+
+	
+	xmin = [[hGridArray objectAtIndex: 0] doubleValue];
+	xmax = [[hGridArray lastObject] doubleValue];
+	double	hspan = xmax - xmin;
+	xdiv = hspan/(sourceWidth-1);
+	
+	ymin = [[vGridArray objectAtIndex: 0] doubleValue];
+	ymax = [[vGridArray lastObject] doubleValue];
+	double	vspan = ymax - ymin;
+	ydiv = vspan/(sourceHeight-1);
+	
+	xrot = 0.5*((double)xmin + (double)xmax);
+	yrot = 0.5*((double)ymin + (double)ymax);
+	
+	xmin -= xrot;
+	xmax -= xrot;
+	ymin -= yrot;
+	ymax -= yrot;
+	
+	
+	values = [values subarrayWithRange: NSMakeRange(sourceWidth+sourceHeight, sourceWidth*sourceHeight)];
+	
+	
+	sourceTexels = calloc(sizeof(float), entries);
+	int i = 0;
+	maxValue = 0.0;
+	minValue = INFINITY;
+	
+	// values are ordered by column
+	for (id val in values)
+	{
+		float fval = [val floatValue]*(1.0/xdiv)*(1.0/ydiv);
+		
+		int col = i / sourceHeight;
+		int row = i % sourceHeight;
+		
+		sourceTexels[row*sourceWidth + col] = fval;
+		maxValue = fmaxf(maxValue, fval);
+		minValue = fminf(minValue, fval);
+		++i;
+	}
+	
+	if (doFilter)
+		[self filterTexels];
+	
+	return YES;
+}
+
+
 - (BOOL) loadDIN: (NSString*) fString filter: (BOOL) doFilter
 {
 	NSArray* lines = nonEmptyComponentsSeparatedByCharacterSet(fString, [NSMutableCharacterSet characterSetWithCharactersInString: @"\r\n"]);
@@ -265,7 +364,6 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 	sourceWidth = [[horizontalInfo objectAtIndex: 2] intValue];
 	double	hspan = xmax - xmin;
 	xdiv = hspan/(sourceWidth-1);
-	xrot = 
 
 	ymin = [[verticalInfo objectAtIndex: 0] doubleValue] - 90.0;
 	ymax = [[verticalInfo objectAtIndex: 1] doubleValue] - 90.0;
@@ -418,6 +516,11 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 		if (![self loadDIN: fString filter: doFilter])
 			return nil;
 	}
+	else if ([[fileName pathExtension] caseInsensitiveCompare: @"ies"] == NSOrderedSame)
+	{
+		if (![self loadIES: fString filter: doFilter])
+			return nil;
+	}
 	else
 	{
 		NSLog(@"unknown file extension for lightmap: %@", fileName);
@@ -483,7 +586,7 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 	LogGLError(@"-visualizeLightMap");
 }
 
-@synthesize xrot, yrot;
+@synthesize xrot, yrot, xdiv, ydiv, xmin, xmax, ymin, ymax, sourceWidth, sourceHeight;
 
 @end
 

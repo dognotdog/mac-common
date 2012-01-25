@@ -153,6 +153,8 @@ GLuint	CreateShader(const char** vshaders, GLsizei numVS, const char** fshaders,
 			NSLog(@"ERROR: Compilation failed for fragment shader:\n%s", infoLog);
 			
             free(infoLog);
+			
+			[[NSException exceptionWithName: @"GfxShader.fs.compile.fail" reason: [NSString stringWithFormat: @"ERROR: Compilation failed for fragment shader:\n%s", infoLog] userInfo: nil] raise];
             
             return false;
         }

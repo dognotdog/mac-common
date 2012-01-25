@@ -26,6 +26,7 @@ typedef struct __CVDisplayLink *CVDisplayLinkRef;
 	GLString*	statusString;
 	
 	BOOL	captureMouseEnabled;
+	BOOL	captureFrame;
 	
 	unsigned long	frameCount;
 }

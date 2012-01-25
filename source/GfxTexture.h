@@ -76,11 +76,17 @@
 - (double) verticalFOV;
 
 - (id) initWithLightmapNamed: (NSString*) fileName filter: (BOOL) doFilter;
+- (void) uploadSourceTexels;
+- (void) generateLinearizedValues;
+
+- (LightmapTexture*) lightmapExtendedToRange: (range3d_t) r;
 
 - (void) visualizeLightMapWithState: (GfxStateStack*) gfxState;
 
-@property(nonatomic,readonly) double xrot;
-@property(nonatomic,readonly) double yrot;
+@property(nonatomic,readonly) double xrot, yrot;
+@property(nonatomic,readonly) double xdiv, ydiv;
+@property(nonatomic,readonly) double xmin, xmax, ymin, ymax;
+@property(nonatomic,readonly) size_t sourceWidth, sourceHeight;
 
 @end
 

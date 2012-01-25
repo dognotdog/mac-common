@@ -892,7 +892,10 @@ static int _extension_supported(const char *extension)
 	LogGLError(@"???");
     for (GfxMesh_batch* batch in batches)
 	{
-        glDrawElements([batch drawMode], [batch count], GL_UNSIGNED_INT, NULL+sizeof(*indices)*[batch begin]);
+		if (!indices)
+			glDrawArrays([batch drawMode], [batch begin], [batch count]);
+		else
+			glDrawElements([batch drawMode], [batch count], GL_UNSIGNED_INT, NULL+sizeof(*indices)*[batch begin]);
 		LogGLError(@"batch");
 	}
 

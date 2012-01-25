@@ -208,6 +208,36 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	
 }
 
+- (NSImage*) image
+{
+    NSBitmapImageRep* imageRep;
+    NSImage* image;
+    NSSize viewSize = [self bounds].size;
+    int width = viewSize.width;
+    int height = viewSize.height;
+	
+	
+    imageRep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
+													   pixelsWide:width
+													   pixelsHigh:height
+													bitsPerSample:8
+												  samplesPerPixel:4
+														 hasAlpha:YES
+														 isPlanar:NO
+												   colorSpaceName:NSDeviceRGBColorSpace
+													  bytesPerRow:width*4
+													 bitsPerPixel:32];
+	
+    glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE, [imageRep bitmapData]);
+    image = [[NSImage alloc] initWithSize:NSMakeSize(width,height)];
+    [image addRepresentation:imageRep];
+    [image setFlipped:YES]; // this is deprecated in 10.6
+    [image lockFocusOnRepresentation: imageRep]; // this will flip the rep
+    [image unlockFocus];
+    return image;
+}
+
+
 - (CVReturn) getFrameForTime: (const CVTimeStamp*) outputTime
 {
 	@autoreleasepool {
@@ -251,6 +281,18 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 		LogGLError(@"after draw");
 		
 		[[self openGLContext] flushBuffer];
+		
+		if (captureFrame)
+		{
+			NSImage* img = [self image];
+			dispatch_async(dispatch_get_main_queue(), ^{
+				NSPasteboard* pb = [NSPasteboard generalPasteboard];
+				[pb clearContents];
+				NSArray* copied = [NSArray arrayWithObject:img];
+				[pb writeObjects:copied];
+			});
+			captureFrame = NO;
+		}
 		
 		[GfxResourceDisposal performDisposal];
 		
