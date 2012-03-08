@@ -13,5 +13,8 @@
 - (NSArray*) map: (id (^)(id obj)) block;
 - (NSArray*) select: (BOOL (^)(id obj)) block;
 
+- (NSArray*) arrayByRemovingObject: (id) obj;
+- (NSArray*) arrayByRemovingObjectsInArray: (NSArray*) ary;
+
 @end
 

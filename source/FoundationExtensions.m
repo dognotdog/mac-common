@@ -33,4 +33,20 @@
 	return new;
 
 }
+
+- (NSArray*) arrayByRemovingObject:(id)obj
+{
+	NSMutableArray* ary = [self mutableCopy];
+	[ary removeObject: obj];
+	return ary;
+}
+
+- (NSArray*) arrayByRemovingObjectsInArray: (NSArray*) ary
+{
+	NSMutableArray* result = [self mutableCopy];
+	[result removeObjectsInArray: ary];
+	return result;
+}
+
+
 @end
