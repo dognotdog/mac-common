@@ -16,5 +16,8 @@
 - (NSArray*) arrayByRemovingObjectsAtIndexes: (NSIndexSet*) indexes;
 - (NSArray*) arrayByInsertingObjects: (NSArray*) ary atIndexes: (NSIndexSet*) indexes;
 
+- (NSArray*) arrayByRemovingObject: (id) obj;
+- (NSArray*) arrayByRemovingObjectsInArray: (NSArray*) ary;
+
 @end
 
