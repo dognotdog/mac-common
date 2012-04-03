@@ -281,7 +281,7 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 	sourceHeight = [verticalCountString intValue];
 	
 	
-	NSMutableArray* values = [NSMutableArray arrayWithCapacity: sourceWidth*sourceHeight + sourceWidth + sourceHeight];
+	id values = [NSMutableArray arrayWithCapacity: sourceWidth*sourceHeight + sourceWidth + sourceHeight];
 	
 	for (NSString* line in [lines subarrayWithRange: NSMakeRange(7, [lines count]-7)])
 	{
