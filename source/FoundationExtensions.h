@@ -13,5 +13,8 @@
 - (NSArray*) map: (id (^)(id obj)) block;
 - (NSArray*) select: (BOOL (^)(id obj)) block;
 
+- (NSArray*) arrayByRemovingObjectsAtIndexes: (NSIndexSet*) indexes;
+- (NSArray*) arrayByInsertingObjects: (NSArray*) ary atIndexes: (NSIndexSet*) indexes;
+
 @end
 

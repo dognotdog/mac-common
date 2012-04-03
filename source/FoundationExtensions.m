@@ -33,4 +33,20 @@
 	return new;
 
 }
+
+- (NSArray*) arrayByRemovingObjectsAtIndexes: (NSIndexSet*) indexes
+{
+	NSMutableArray* ary = [self mutableCopy];
+	[ary removeObjectsAtIndexes: indexes];
+	return ary;
+}
+- (NSArray*) arrayByInsertingObjects: (NSArray*) objects atIndexes: (NSIndexSet*) indexes
+{
+	NSMutableArray* ary = [self mutableCopy];
+	
+	[ary insertObjects: objects atIndexes: indexes];
+	
+	return ary;
+}
+
 @end

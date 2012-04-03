@@ -281,7 +281,7 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 	sourceHeight = [verticalCountString intValue];
 	
 	
-	NSMutableArray* values = [NSMutableArray arrayWithCapacity: sourceWidth*sourceHeight + sourceWidth + sourceHeight];
+	id values = [NSMutableArray arrayWithCapacity: sourceWidth*sourceHeight + sourceWidth + sourceHeight];
 	
 	for (NSString* line in [lines subarrayWithRange: NSMakeRange(7, [lines count]-7)])
 	{
@@ -562,6 +562,93 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 {
 	return (double)(ymax-ymin)*M_PI/180.0;
 }
+
+// bilinear lookup in 0..1 range
+static float _lookupLightmap(float* texels, int width, int height, float u, float v)
+{
+	float x = u*width;
+	int i = floorf(x);
+	int ii = i+1;
+	float tx = x - i;
+	float tx1 = 1.0f - tx;
+	float y = v*height;
+	int j = floorf(y);
+	int jj = j+1;
+	float ty = y - j;
+	float ty1 = 1.0f - ty;
+	
+	float y00 = 0.0;
+	float y01 = 0.0;
+	float y10 = 0.0;
+	float y11 = 0.0;
+	
+	if ((i >= 0) && (i < width) && (j >= 0) && (j <= height))
+		y00 = texels[height*j + i]; 
+	if ((ii >= 0) && (ii < width) && (j >= 0) && (j <= height))
+		y01 = texels[height*j + ii]; 
+	if ((i >= 0) && (i < width) && (jj >= 0) && (jj <= height))
+		y10 = texels[height*jj + i]; 
+	if ((ii >= 0) && (ii < width) && (jj >= 0) && (jj <= height))
+		y11 = texels[height*jj + ii];
+	
+	return (y00*tx1*ty1 + y01*tx*ty1 + y10*tx1*ty + y11*tx*ty);
+	
+}
+
+- (void) extendToRange: (range3d_t) r
+{
+	int newWidth = (r.maxv.farr[0]-r.minv.farr[0])/xdiv + 1;
+	int newHeight = (r.maxv.farr[1]-r.minv.farr[1])/ydiv + 1;
+	
+	range3d_t oldr = rCreateFromMinMax(vCreatePos(xmin+xrot, ymin+yrot, 0.0), vCreatePos(xmax+xrot, ymax+yrot, 1.0));
+	
+	vector_t olds = vSub3D(oldr.maxv, oldr.minv);
+		
+	int newSize = newWidth*newHeight;
+	
+	float* newTexels = calloc(newSize, sizeof(*newTexels));
+	
+	for (int j = 0; j < newHeight; ++j)
+	{
+		float y = xdiv*j + r.minv.farr[1];
+		
+		for (int i = 0; i < newWidth; ++i)
+		{
+			float x = xdiv*i + r.minv.farr[0];
+		
+			float a = _lookupLightmap(sourceTexels, width, height, (x-oldr.minv.farr[0])/olds.farr[0], (y-oldr.minv.farr[1])/olds.farr[1]);
+			
+			newTexels[j*newWidth+i] = a;
+		}
+	}
+	
+	xmin = r.minv.farr[0];
+	xmax = r.maxv.farr[0];
+	ymin = r.minv.farr[1];
+	ymax = r.maxv.farr[1];
+	
+	xrot = 0.5*((double)xmin + (double)xmax);
+	yrot = 0.5*((double)ymin + (double)ymax);
+	
+	xmin -= xrot;
+	xmax -= xrot;
+	ymin -= yrot;
+	ymax -= yrot;
+
+	free(sourceTexels);
+	sourceTexels = newTexels;
+	
+	assert(!linearTexels);
+}
+
+- (LightmapTexture*) lightmapExtendedToRange: (range3d_t) r
+{
+	LightmapTexture* map = [[LightmapTexture alloc] initWithLightmapNamed: name filter: NO];
+	
+	[map extendToRange: r];
+	return map;
+}
+
 
 - (void) visualizeLightMapWithState: (GfxStateStack*) gfxState
 {
