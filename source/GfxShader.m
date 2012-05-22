@@ -23,6 +23,18 @@ void glUniformMatrix4(GLint uloc, matrix_t m)
 	
 };
 
+void glUniformMatrix3(GLint uloc, matrix_t m)
+{
+	GLfloat farr[9];
+	for (int j = 0; j < 3; ++j)
+		for (int i = 0; i < 3; ++i)
+		farr[3*j+i] = m.varr[j].farr[i];
+	
+	glUniformMatrix3fv(uloc, 1, 0, farr);
+	
+};
+
+
 void glUniformVector4(GLint uloc, vector_t v)
 {
 	GLfloat farr[4];

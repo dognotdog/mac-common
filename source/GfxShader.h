@@ -11,6 +11,7 @@
 #import "VectorMath.h"
 
 
+void glUniformMatrix3(GLint uloc, matrix_t m);
 void glUniformMatrix4(GLint uloc, matrix_t m);
 void glUniformVector4(GLint uloc, vector_t v);
 

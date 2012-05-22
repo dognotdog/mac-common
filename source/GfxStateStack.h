@@ -28,6 +28,7 @@
 - (void) setFloatUniform: (GLfloat) val named: (NSString*) name;
 - (void) setVectorUniform: (vector_t) val named: (NSString*) name;
 - (void) setMatrixUniform: (matrix_t) val named: (NSString*) name;
+- (void) setMatrix3Uniform: (matrix_t) val named: (NSString*) name;
 
 @property(nonatomic) matrix_t modelViewMatrix;
 @property(nonatomic) matrix_t projectionMatrix;

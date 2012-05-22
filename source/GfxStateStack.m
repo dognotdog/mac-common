@@ -285,6 +285,13 @@
     
 	glUniformMatrix4(uloc, val);
 }
+- (void) setMatrix3Uniform: (matrix_t) val named: (NSString*) name
+{
+	GLint uloc = 0;
+	uloc = glGetUniformLocation(shader.glName, [name UTF8String]);
+    
+	glUniformMatrix3(uloc, val);
+}
 - (void) setVectorUniform: (vector_t) val named: (NSString*) name
 {
 	GLint uloc = 0;
