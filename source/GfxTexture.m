@@ -20,7 +20,7 @@
 	double xmin, xmax, ymin, ymax;
 	double xrot, yrot;
 	double xdiv, ydiv;
-	float minValue, maxValue;
+	float minValue, maxValue, linearMin, linearMax;
 	float* sourceTexels;
 	float* linearTexels;
 	
@@ -144,6 +144,9 @@ struct lrec { int lo, hi; double t; };
 			//linearTexels[j*lwidth+i] = 1.0;
 		}
 	}
+	
+	linearMin = lmin;
+	linearMax = lmax;
 	
 	free(xmv);
 	free(ymv);
@@ -582,14 +585,14 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 	float y10 = 0.0;
 	float y11 = 0.0;
 	
-	if ((i >= 0) && (i < width) && (j >= 0) && (j <= height))
-		y00 = texels[height*j + i]; 
-	if ((ii >= 0) && (ii < width) && (j >= 0) && (j <= height))
-		y01 = texels[height*j + ii]; 
-	if ((i >= 0) && (i < width) && (jj >= 0) && (jj <= height))
-		y10 = texels[height*jj + i]; 
-	if ((ii >= 0) && (ii < width) && (jj >= 0) && (jj <= height))
-		y11 = texels[height*jj + ii];
+	if ((i >= 0) && (i < width) && (j >= 0) && (j < height))
+		y00 = texels[width*j + i]; 
+	if ((ii >= 0) && (ii < width) && (j >= 0) && (j < height))
+		y01 = texels[width*j + ii]; 
+	if ((i >= 0) && (i < width) && (jj >= 0) && (jj < height))
+		y10 = texels[width*jj + i]; 
+	if ((ii >= 0) && (ii < width) && (jj >= 0) && (jj < height))
+		y11 = texels[width*jj + ii];
 	
 	return (y00*tx1*ty1 + y01*tx*ty1 + y10*tx1*ty + y11*tx*ty);
 	
@@ -599,6 +602,10 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 {
 	int newWidth = (r.maxv.farr[0]-r.minv.farr[0])/xdiv + 1;
 	int newHeight = (r.maxv.farr[1]-r.minv.farr[1])/ydiv + 1;
+	
+	float oldMin = minValue, oldMax = maxValue;
+	
+	minValue = INFINITY; maxValue = -INFINITY;
 	
 	range3d_t oldr = rCreateFromMinMax(vCreatePos(xmin+xrot, ymin+yrot, 0.0), vCreatePos(xmax+xrot, ymax+yrot, 1.0));
 	
@@ -610,14 +617,16 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 	
 	for (int j = 0; j < newHeight; ++j)
 	{
-		float y = xdiv*j + r.minv.farr[1];
+		float y = ydiv*j + r.minv.farr[1];
 		
 		for (int i = 0; i < newWidth; ++i)
 		{
 			float x = xdiv*i + r.minv.farr[0];
 		
-			float a = _lookupLightmap(sourceTexels, width, height, (x-oldr.minv.farr[0])/olds.farr[0], (y-oldr.minv.farr[1])/olds.farr[1]);
+			float a = _lookupLightmap(sourceTexels, sourceWidth, sourceHeight, (x-oldr.minv.farr[0])/olds.farr[0], (y-oldr.minv.farr[1])/olds.farr[1]);
 			
+			minValue = fmin(minValue, a);
+			maxValue = fmax(maxValue, a);
 			newTexels[j*newWidth+i] = a;
 		}
 	}
@@ -653,7 +662,7 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 - (void) visualizeLightMapWithState: (GfxStateStack*) gfxState
 {
 	gfxState.depthTestEnabled = NO;
-	gfxState.blendingEnabled = NO;
+	gfxState.blendingEnabled = YES;
 	gfxState.shader = vizShader;
     [vizShader useShader];
 	
@@ -663,7 +672,6 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 	[gfxState setIntegerUniform: 0 named: @"textureMap"];
 	//[gfxState setMatrixUniform: mIdentity() named: @"textureMatrix"];
 	
-	gfxState.color = vCreate(1.0f, 1.0f, 1.0f, 1.0f);
 	
 	[gfxState submitState];
 	
