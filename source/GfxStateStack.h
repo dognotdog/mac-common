@@ -27,6 +27,7 @@
 - (void) setIntegerUniform: (GLint) val named: (NSString*) name;
 - (void) setFloatUniform: (GLfloat) val named: (NSString*) name;
 - (void) setVectorUniform: (vector_t) val named: (NSString*) name;
+- (void) setVector3Uniform: (vector_t) val named: (NSString*) name;
 - (void) setMatrixUniform: (matrix_t) val named: (NSString*) name;
 - (void) setMatrix3Uniform: (matrix_t) val named: (NSString*) name;
 

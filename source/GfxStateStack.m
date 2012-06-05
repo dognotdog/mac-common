@@ -300,6 +300,14 @@
 	glUniform4f(uloc, val.farr[0], val.farr[1], val.farr[2], val.farr[3]);
 }
 
+- (void) setVector3Uniform: (vector_t) val named: (NSString*) name
+{
+	GLint uloc = 0;
+	uloc = glGetUniformLocation(shader.glName, [name UTF8String]);
+    
+	glUniform3f(uloc, val.farr[0], val.farr[1], val.farr[2]);
+}
+
 - (void) setShader:(GfxShader*)si
 {
 	shader = si;
