@@ -79,6 +79,9 @@
 - (void) uploadSourceTexels;
 - (void) generateLinearizedValues;
 
+- (void) mergeWithLightmap: (LightmapTexture*) lmp;
+- (BOOL) writeBinaryLightmap: (NSString*) fString;
+
 - (LightmapTexture*) lightmapExtendedToRange: (range3d_t) r;
 
 - (void) visualizeLightMapWithState: (GfxStateStack*) gfxState;
