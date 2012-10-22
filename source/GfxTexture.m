@@ -29,6 +29,27 @@
 
 struct lrec { int lo, hi; double t; };
 
+- (void) mergeWithLightmap: (LightmapTexture*) lmp;
+{
+	assert(sourceWidth*sourceHeight == lmp.sourceWidth*lmp.sourceHeight);
+	
+	minValue = INFINITY;
+	maxValue = -INFINITY;
+	
+	if (textureName)
+	{
+		[GfxResourceDisposal disposeOfResourcesWithTypes: textureName, GFX_RESOURCE_TEXTURE];
+		textureName = 0;
+	}
+		
+	for (size_t i = 0; i < sourceWidth*sourceHeight; ++i)
+	{
+		sourceTexels[i] += lmp->sourceTexels[i];
+		minValue = fminf(sourceTexels[i], minValue);
+		maxValue = fminf(sourceTexels[i], maxValue);
+	}
+	
+}
 
 - (void) fadeToEdges
 {
@@ -493,6 +514,168 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 	return YES;
 }
 
+static ssize_t read_ntohd(int file, double* dst, size_t num)
+{
+	CFSwappedFloat64* buf = calloc(sizeof(*buf), num);
+	ssize_t res = read(file, buf, sizeof(*buf)*num);
+	
+	for (size_t i = 0; i < num; ++i)
+	{
+		dst[i] = CFConvertFloat64SwappedToHost(buf[i]);
+	}
+	
+	free(buf);
+	return res;
+}
+
+static ssize_t read_ntohf(int file, float* dst, size_t num)
+{
+	CFSwappedFloat32* buf = calloc(sizeof(*buf), num);
+	ssize_t res = read(file, buf, sizeof(*buf)*num);
+	
+	for (size_t i = 0; i < num; ++i)
+	{
+		dst[i] = CFConvertFloat32SwappedToHost(buf[i]);
+	}
+	
+	free(buf);
+	return res;
+}
+
+
+static ssize_t read_ntoh4(int file, uint32_t* dst, size_t num)
+{
+	uint32_t* buf = calloc(sizeof(*buf), num);
+	ssize_t res = read(file, buf, sizeof(*buf)*num);
+	
+	for (size_t i = 0; i < num; ++i)
+	{
+		dst[i] = CFSwapInt32BigToHost(buf[i]);
+	}
+	
+	free(buf);
+	return res;
+}
+
+static ssize_t write_htond(int file, double* src, size_t num)
+{
+	CFSwappedFloat64* buf = calloc(sizeof(*buf), num);
+	for (size_t i = 0; i < num; ++i)
+	{
+		buf[i] = CFConvertFloat64HostToSwapped(src[i]);
+	}
+	
+	ssize_t res = write(file, buf, sizeof(*src)*num);
+
+	free(buf);
+
+	return res;
+
+}
+
+static ssize_t write_htonf(int file, float* src, size_t num)
+{
+	CFSwappedFloat32* buf = calloc(sizeof(*buf), num);
+	for (size_t i = 0; i < num; ++i)
+	{
+		buf[i] = CFConvertFloat32HostToSwapped(src[i]);
+	}
+	
+	ssize_t res = write(file, buf, sizeof(*src)*num);
+	
+	free(buf);
+	
+	return res;
+	
+}
+
+static ssize_t write_hton4(int file, uint32_t* src, size_t num)
+{
+	uint32_t* buf = calloc(sizeof(*buf), num);
+	for (size_t i = 0; i < num; ++i)
+	{
+		buf[i] = CFSwapInt32BigToHost(src[i]);
+	}
+	
+	ssize_t res = write(file, buf, sizeof(*src)*num);
+	
+	free(buf);
+	
+	return res;
+	
+}
+
+
+- (BOOL) writeBinaryLightmap: (NSString*) fString
+{
+	int file = open([fString UTF8String], O_CREAT|O_TRUNC|O_WRONLY, 0644);
+	
+	assert(file != -1);
+	
+	write_htond(file, &xmin, 1);
+	write_htond(file, &xmax, 1);
+	write_htond(file, &ymin, 1);
+	write_htond(file, &ymax, 1);
+	write_htond(file, &xrot, 1);
+	write_htond(file, &yrot, 1);
+	write_htond(file, &xdiv, 1);
+	write_htond(file, &ydiv, 1);
+	
+	uint32_t w = sourceWidth, h = sourceHeight;
+	
+	write_hton4(file, &w, 1);
+	write_hton4(file, &h, 1);
+	
+	
+	size_t entries = w*h;
+	
+	write_htonf(file, sourceTexels, entries);
+	
+	close(file);
+	
+	return YES;
+	
+}
+
+- (BOOL) loadBinaryLightmap: (NSString*) fString filter: (BOOL) doFilter
+{
+	int file = open([fString UTF8String], O_RDONLY);
+	
+	assert(file != -1);
+	
+	read_ntohd(file, &xmin, 1);
+	read_ntohd(file, &xmax, 1);
+	read_ntohd(file, &ymin, 1);
+	read_ntohd(file, &ymax, 1);
+	read_ntohd(file, &xrot, 1);
+	read_ntohd(file, &yrot, 1);
+	read_ntohd(file, &xdiv, 1);
+	read_ntohd(file, &ydiv, 1);
+	
+	uint32_t w, h;
+	
+	read_ntoh4(file, &w, 1);
+	read_ntoh4(file, &h, 1);
+	
+	
+		
+	sourceWidth = (double)(xmax - xmin)/xdiv+1;
+	sourceHeight = (double)(ymax - ymin)/ydiv+1;
+	
+	assert(w == sourceWidth);
+	assert(h == sourceHeight);
+	
+	size_t entries = sourceWidth*sourceHeight;
+	
+	sourceTexels = calloc(sizeof(*sourceTexels), entries);
+
+	read_ntohf(file, sourceTexels, entries);
+	
+	close(file);
+	
+	return YES;
+}
+
 - (id) initWithLightmapNamed: (NSString*) fileName filter: (BOOL) doFilter
 {
 	self = [super init];
@@ -522,6 +705,11 @@ static NSArray* nonEmptyComponentsSeparatedByCharacterSet(NSString* string, NSCh
 	else if ([[fileName pathExtension] caseInsensitiveCompare: @"ies"] == NSOrderedSame)
 	{
 		if (![self loadIES: fString filter: doFilter])
+			return nil;
+	}
+	else if ([[fileName pathExtension] caseInsensitiveCompare: @"lightmap"] == NSOrderedSame)
+	{
+		if (![self loadBinaryLightmap: fileName filter: doFilter])
 			return nil;
 	}
 	else
@@ -646,6 +834,9 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 
 	free(sourceTexels);
 	sourceTexels = newTexels;
+	
+	sourceWidth = newWidth;
+	sourceHeight = newHeight;
 	
 	assert(!linearTexels);
 }

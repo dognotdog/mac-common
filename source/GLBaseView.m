@@ -62,6 +62,8 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	}
 }
 
+static NSOpenGLContext* _sharedContext = nil;
+
 - (id)initWithFrame:(NSRect)frame
 {
 	
@@ -71,7 +73,13 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	fmt = [[NSOpenGLPixelFormat alloc] initWithAttributes: _formatAttribs];
 	
 	self = [super initWithFrame:frame];
-	NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat: fmt shareContext: nil];
+	
+	if (!_sharedContext)
+	{
+		_sharedContext = [[NSOpenGLContext alloc] initWithFormat: fmt shareContext: nil];
+	}
+	
+	NSOpenGLContext* context = [[NSOpenGLContext alloc] initWithFormat: fmt shareContext: _sharedContext];
 	[context update];
 	
 	CGLLockContext([context CGLContextObj]);
