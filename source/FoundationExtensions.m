@@ -21,6 +21,19 @@
 	return new;
 }
 
+- (NSArray *) indexedMap: (id (^)(id obj, NSInteger index))block
+{
+	NSMutableArray *new = [[NSMutableArray alloc] initWithCapacity: [self count]];
+	NSInteger i = 0;
+	for(id obj in self)
+	{
+		id newObj = block(obj, i);
+		[new addObject: newObj ? newObj : [NSNull null]];
+		++i;
+	}
+	return new;
+}
+
 - (NSArray*) select: (BOOL (^)(id obj)) block
 {
 	NSMutableArray *new = [[NSMutableArray alloc] initWithCapacity: [self count]];

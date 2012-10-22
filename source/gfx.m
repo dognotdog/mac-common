@@ -45,7 +45,7 @@ static int _extension_supported(const char *extension)
 
 + (id) batchStarting: (size_t) begin count: (size_t) count mode: (unsigned) theMode
 {
-	asin(count);
+	assert(count);
 	GfxMesh_batch* obj = [[GfxMesh_batch alloc] init];
 	[obj setBegin: begin];
 	[obj setCount: count];

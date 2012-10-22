@@ -711,7 +711,7 @@ void MeshOctree_addVerticesAndTriangles(MeshOctree* self, vector_t* vs, size_t v
 		vector_t e12 = v3Sub(p2,p1);
 	//	vector_t e20 = v3Sub(p0,p2);
 		vector_t n = vCross(e01, e12);
-		assert(vDot(n,n) > FLT_EPSILON);
+		assert(vDot(n,n) > DBL_EPSILON);
 		tri->normal = vSetLength(n, 1.0);
 	}
 	self->numVertices += vCount;

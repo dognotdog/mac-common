@@ -103,6 +103,7 @@ void	_LogGLError(NSString* str);
 - (void) addBatch: (GfxMesh_batch*) batch;
 - (void) removeAllBatches;
 
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) state;
 - (void) justDraw;
 - (void) drawBatch: (GfxMesh_batch*) batch;
 

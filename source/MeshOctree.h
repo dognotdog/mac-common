@@ -52,6 +52,8 @@ struct MeshTriangle
 	OctreeNode*		baseNode;
 	range3d_t		baseBounds;
 };
+
+
 @end
 
 MeshOctree* MeshOctree_create(void);

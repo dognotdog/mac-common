@@ -849,6 +849,15 @@ static inline int rRangeContainsPointXYInclusiveMinExclusiveMax(range3d_t r, vec
 	return ((P.farr[0] >= r.minv.farr[0]) && (P.farr[1] >= r.minv.farr[1]) && (P.farr[0] < r.maxv.farr[0]) && (P.farr[1] < r.maxv.farr[1]));
 };
 
+static inline matrix_t rToMatrix(range3d_t r)
+{
+	matrix_t T = mTranslationMatrix(r.minv);
+	vector_t s = vSub3D(r.maxv, r.minv);
+	matrix_t S = mScaleMatrix(s);
+	
+	return mTransform(T, S);
+};
+
 static inline range3d_t mTransformRangeOrtho(matrix_t m, range3d_t r)
 {
 	vector_t rv = v3Sub(r.maxv, r.minv);

@@ -276,7 +276,6 @@ static long CGPointInCircumCircule(CGPoint d, CGPoint a, CGPoint b, CGPoint c)
 }
 
 
-
 static inline CGPoint cubicPointAtT(CGPoint p0, CGPoint p1, CGPoint p2, CGPoint p3, float t)
 {
 	float t1 = 1.0f-t;
