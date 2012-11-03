@@ -326,9 +326,10 @@ static int _extension_supported(const char *extension)
 	
 	for (size_t i = 0; i < c; ++i)
 	{
-		assert(!vIsNAN(vertices[i]));
-		vertexBounds.minv = vMin(vertexBounds.minv, vertices[i]);
-		vertexBounds.maxv = vMax(vertexBounds.maxv, vertices[i]);
+		vector_t x = vertices[i];
+		assert(!vIsNAN(x));
+		vertexBounds.minv = vMin(vertexBounds.minv, x);
+		vertexBounds.maxv = vMax(vertexBounds.maxv, x);
 	}
 	
 	numVertices = c;
@@ -465,7 +466,10 @@ static int _extension_supported(const char *extension)
 
 - (void) addDrawArrayIndices: (uint32_t*) array count: (size_t) count withMode: (unsigned int) mode
 {
-	assert(count);
+	
+	if (!count)
+		return;
+
 	size_t offset = numIndices;
 	indices = realloc(indices, sizeof(*indices)*(numIndices+count));
 	
@@ -628,14 +632,23 @@ static int _extension_supported(const char *extension)
 
 - (void) appendMesh: (GfxMesh*) mesh
 {
-	assert([mesh numVertices] == [mesh numNormals]);
-	assert([mesh numVertices] == [mesh numTexCoords]);
+	assert(![mesh numNormals] || ([mesh numVertices] == [mesh numNormals]));
+	assert(![mesh numTexCoords] || ([mesh numVertices] == [mesh numTexCoords]));
+	assert(![mesh numColors] || ([mesh numVertices] == [mesh numColors]));
 	
 	size_t vertexOffset = numVertices;
 	
+	assert((numColors && [mesh numColors]) || !numVertices || (!numColors && ![mesh numColors]));
+	assert((numTexCoords && [mesh numTexCoords]) || !numVertices || (!numTexCoords && ![mesh numTexCoords]));
+	assert((numNormals && [mesh numNormals]) || !numVertices || (!numNormals && ![mesh numNormals]));
+	
 	[self addVertices: [mesh vertices] count: [mesh numVertices]];
-	[self addTexCoords: [mesh texCoords] count: [mesh numTexCoords]];
-	[self addNormals: [mesh normals] count: [mesh numNormals]];
+	if ([mesh numTexCoords])
+		[self addTexCoords: [mesh texCoords] count: [mesh numTexCoords]];
+	if ([mesh numNormals])
+		[self addNormals: [mesh normals] count: [mesh numNormals]];
+	if ([mesh numColors])
+		[self addColors: [mesh colors] count: [mesh numColors]];
 	
 	size_t indexOffset = numIndices;
 	[self addIndices: [mesh indices] count: [mesh numIndices] offset: vertexOffset];

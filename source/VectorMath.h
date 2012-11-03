@@ -644,6 +644,12 @@ static inline vector_t vProjectAOnB(vector_t a, vector_t b)
 	return v3MulScalar(b, factor);
 }
 
+static inline vector_t vReverseProject(vector_t a, vector_t b)
+{
+	return v3MulScalar(b, vDot(a, a)/vDot(a,b));
+}
+
+
 static inline vmfloat_t vLength(vector_t av)
 {
 	vmfloat_t* a = av.farr;
@@ -1065,6 +1071,40 @@ static inline vmfloat_t xPointPlaneDistance(const vector_t C, const vector_t P, 
 	*xptr = X;
 	return d;
 }
+
+static inline long xLineSegments2D(vector_t p0, vector_t p1, vector_t p2, vector_t p3)
+{
+	vmfloat_t d = vCross(v3Sub(p1,p0), v3Sub(p3,p2)).farr[2];
+	
+	if (d == 0.0)
+		return 0;
+	
+	vmfloat_t a = vCross(v3Sub(p2,p0), v3Sub(p3,p2)).farr[2];
+	vmfloat_t b = vCross(v3Sub(p2,p0), v3Sub(p1,p0)).farr[2];
+	
+	vmfloat_t ta = a/d;
+	vmfloat_t tb = b/d;
+	
+	return ((ta >= 0.0) && (ta < 1.0) && (tb >= 0.0) && (tb < 1.0));
+}
+
+
+static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r2)
+{
+	vmfloat_t d = vCross(r0, r2).farr[2];
+	
+	if (d == 0.0)
+		return vCreateDir(INFINITY, INFINITY, 0.0);
+	
+	vmfloat_t a = vCross(v3Sub(p2,p0), r2).farr[2];
+	vmfloat_t b = vCross(v3Sub(p2,p0), r0).farr[2];
+	
+	vmfloat_t ta = a/d;
+	vmfloat_t tb = b/d;
+	
+	return vCreateDir(ta, tb, 0.0);
+}
+
 
 static inline v3i_t v3iCreate(int i, int j, int k)
 {
