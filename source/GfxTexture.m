@@ -11,6 +11,7 @@
 #import "GfxStateStack.h"
 #import "GfxShader.h"
 #import "gfx.h"
+#import "FoundationExtensions.h"
 
 #import <OpenGL/gl3ext.h>
 
@@ -28,6 +29,38 @@
 }
 
 struct lrec { int lo, hi; double t; };
+
++ (NSArray*) equalizeLightmapDimensions: (NSArray*) inMaps
+{
+	
+	if (![inMaps count])
+		return [NSArray array];
+	double xdiv = [[inMaps objectAtIndex: 0] xdiv];
+	double ydiv = [[inMaps objectAtIndex: 0] ydiv];
+	double minx = INFINITY, miny = INFINITY, maxx = -INFINITY, maxy = -INFINITY;
+	
+	for (LightmapTexture* map in inMaps)
+	{
+		xdiv = fmin(xdiv, map.xdiv);
+		ydiv = fmin(ydiv, map.ydiv);
+		minx = MIN(minx, map.xmin + map.xrot);
+		miny = MIN(miny, map.ymin + map.yrot);
+		maxx = MAX(maxx, map.xmax + map.xrot);
+		maxy = MAX(maxy, map.ymax + map.yrot);
+	}
+	
+	NSArray* outMaps = [inMaps map: ^id(LightmapTexture* map) {
+		map = [map lightmapResampledTo: vCreateDir(xdiv, ydiv, 0.0)];
+		
+		[map extendToRange: rCreateFromMinMax(vCreatePos(minx, miny, 0.0), vCreatePos(maxx, maxy, 0.0))];
+		
+		
+		return map;
+	}];
+	assert(outMaps);
+	return outMaps;
+}
+
 
 - (void) mergeWithLightmap: (LightmapTexture*) lmp;
 {
@@ -610,6 +643,21 @@ static ssize_t write_hton4(int file, uint32_t* src, size_t num)
 {
 	int file = open([fString UTF8String], O_CREAT|O_TRUNC|O_WRONLY, 0644);
 	
+	if (!sourceWidth && !sourceHeight)
+	{
+		sourceWidth = 2;
+		sourceHeight = 2;
+		xmin = -0.1;
+		xmax = 0.1;
+		ymin = -0.1;
+		ymax = 0.1;
+		xdiv = 0.2;
+		ydiv = 0.2;
+		sourceTexels = realloc(sourceTexels, sizeof(*sourceTexels)*sourceWidth*sourceHeight);
+		memset(sourceTexels, 0, sizeof(*sourceTexels)*sourceWidth*sourceHeight);
+		
+	}
+
 	assert(file != -1);
 	
 	write_htond(file, &xmin, 1);
@@ -682,7 +730,6 @@ static ssize_t write_hton4(int file, uint32_t* src, size_t num)
 	if (!self)
 		return nil;
 	
-	vizShader = [[GfxShader alloc] initWithVertexShaderFile: @"lmpviz.vs" fragmentShaderFile: @"lmpviz.fs"];
 	
 	if (![fileName isAbsolutePath])
 		fileName = [[NSBundle mainBundle] pathForResource: fileName ofType: nil];
@@ -786,11 +833,54 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 	
 }
 
+- (void) resampleTo: (vector_t) div
+{
+	range3d_t r = rCreateFromMinMax(vCreatePos(xmin+xrot, ymin+yrot, 0.0), vCreatePos(xmax+xrot, ymax+yrot, 1.0));
+	vector_t s = vSub3D(r.maxv, r.minv);
+	
+	int newWidth = s.farr[0]/div.farr[0] + 1;
+	int newHeight = s.farr[1]/div.farr[1] + 1;
+		
+	minValue = INFINITY; maxValue = -INFINITY;
+		
+	int newSize = newWidth*newHeight;
+	
+	float* newTexels = calloc(newSize, sizeof(*newTexels));
+	
+	for (int j = 0; j < newHeight; ++j)
+	{
+		float y = div.farr[1]*j + r.minv.farr[1];
+		
+		for (int i = 0; i < newWidth; ++i)
+		{
+			float x = div.farr[0]*i + r.minv.farr[0];
+			
+			float a = _lookupLightmap(sourceTexels, sourceWidth, sourceHeight, (x-r.minv.farr[0])/s.farr[0], (y-r.minv.farr[1])/s.farr[1]);
+			
+			minValue = fmin(minValue, a);
+			maxValue = fmax(maxValue, a);
+			newTexels[j*newWidth+i] = a;
+		}
+	}
+
+	free(sourceTexels);
+	sourceTexels = newTexels;
+	
+	sourceWidth = newWidth;
+	sourceHeight = newHeight;
+	
+	xdiv = div.farr[0];
+	ydiv = div.farr[1];
+	
+	assert(!linearTexels);
+
+}
+
 - (void) extendToRange: (range3d_t) r
 {
 	int newWidth = (r.maxv.farr[0]-r.minv.farr[0])/xdiv + 1;
 	int newHeight = (r.maxv.farr[1]-r.minv.farr[1])/ydiv + 1;
-	
+
 	float oldMin = minValue, oldMax = maxValue;
 	
 	minValue = INFINITY; maxValue = -INFINITY;
@@ -849,9 +939,20 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 	return map;
 }
 
+- (LightmapTexture*) lightmapResampledTo: (vector_t) div
+{
+	LightmapTexture* map = [[LightmapTexture alloc] initWithLightmapNamed: name filter: NO];
+	
+	[map resampleTo: div];
+	return map;
+}
+
 
 - (void) visualizeLightMapWithState: (GfxStateStack*) gfxState
 {
+	if (vizShader)
+		vizShader = [[GfxShader alloc] initWithVertexShaderFile: @"lmpviz.vs" fragmentShaderFile: @"lmpviz.fs"];
+
 	gfxState.depthTestEnabled = NO;
 	gfxState.blendingEnabled = YES;
 	gfxState.shader = vizShader;

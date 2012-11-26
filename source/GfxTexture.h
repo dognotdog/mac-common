@@ -72,6 +72,8 @@
 
 @interface LightmapTexture : GfxTexture
 
++ (NSArray*) equalizeLightmapDimensions: (NSArray*) inMaps;
+
 - (double) aspectRatio;
 - (double) verticalFOV;
 
@@ -83,6 +85,9 @@
 - (BOOL) writeBinaryLightmap: (NSString*) fString;
 
 - (LightmapTexture*) lightmapExtendedToRange: (range3d_t) r;
+- (LightmapTexture*) lightmapResampledTo: (vector_t) div;
+
+- (void) extendToRange: (range3d_t) r;
 
 - (void) visualizeLightMapWithState: (GfxStateStack*) gfxState;
 
