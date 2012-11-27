@@ -19,6 +19,9 @@
 
 - (NSArray*) arrayByRemovingObject: (id) obj;
 - (NSArray*) arrayByRemovingObjectsInArray: (NSArray*) ary;
+- (NSArray*) arrayByRemovingLastObject;
+
+- (NSArray*) continuousSubarraysWithCommonProperty: (BOOL (^)(id referenceObject, id obj)) block;
 
 @end
 
@@ -39,4 +42,16 @@ static inline void* memcpy_ntohl(uint32_t* dst, const void* src, size_t count)
 	
 	return dst;
 }
+
+@interface NSSet (FoundationExtensions)
+
+- (NSSet*) xorSetWithSet: (NSSet*) set;
+
+@end
+
+@interface NSDictionary (FoundationExtensions)
+
+- (NSDictionary*) dictionaryBySettingObject: (id) obj forKey: (id<NSCopying>) key;
+
+@end
 
