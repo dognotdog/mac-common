@@ -1695,12 +1695,12 @@ static int _extension_supported(const char *extension)
 			GfxMesh_batch* batch = [GfxMesh_batch batchStarting: 0 count: numIndices mode: GL_TRIANGLES];
 			[batches addObject: batch];
 		}
-		free(tris);
 		if (shouldSmooth)
 		{
 			[self unifyIndices];
 		}
 	}
+	free(tris);
 	
 }
 
@@ -1833,7 +1833,7 @@ static int _extension_supported(const char *extension)
 			{
 				size_t offset = [batch begin];
 				size_t tc = [batch count];
-				tris = realloc(tris, sizeof(size_t)*(ntris+tc));
+				tris = realloc(tris, sizeof(*tris)*(ntris+tc));
 				for (size_t i = 0; i < tc; ++i)
 					tris[ntris++] = indices[offset + i];
 				
