@@ -49,6 +49,7 @@ static	float dot3(const float g[], const float x, const float y, const float z)
 		free(perm-256);
 		
 	perm = calloc(3*256, sizeof(*perm));
+
 	perm = perm + 256;
 	// generate array from 0..255
 	for (uint32_t i = 0; i < 256; ++i)

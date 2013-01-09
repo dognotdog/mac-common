@@ -726,8 +726,8 @@ void MeshOctree_addVerticesAndTriangles(MeshOctree* self, vector_t* vs, size_t v
 		return nil;
 	
 	self->baseBounds = rInfRange();
-	self->triangles = calloc(0,0);
-	self->vertices = calloc(0,0);
+	self->triangles = calloc(sizeof(*(self->triangles)),1);
+	self->vertices = calloc(sizeof(*(self->vertices)),1);
 	
 	return self;
 }
