@@ -737,6 +737,7 @@ static inline int vEqualWithin3D(vector_t a, vector_t b, double eps)
 	return (fabs(a.farr[0] - b.farr[0]) < eps) && (fabs(a.farr[1] - b.farr[1]) < eps) && (fabs(a.farr[2] - b.farr[2]) < eps);
 }
 
+
 static inline int vIsNAN(vector_t a)
 {
 	return isnan(a.farr[0]) || isnan(a.farr[1]) || isnan(a.farr[2]) || isnan(a.farr[3]);

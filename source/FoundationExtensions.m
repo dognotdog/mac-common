@@ -76,6 +76,45 @@
 	[result removeObjectsInArray: ary];
 	return result;
 }
+- (NSArray*) arrayByRemovingLastObject
+{
+	NSMutableArray* result = [self mutableCopy];
+	[result removeLastObject];
+	return result;
+}
+
 
 
 @end
+
+
+@implementation NSSet (FoundationExtensions)
+
+- (NSSet*) xorSetWithSet: (NSSet*) set
+{
+	NSMutableSet* a = [self mutableCopy];
+	NSMutableSet* b = [set mutableCopy];
+	[a minusSet: set];
+	[b minusSet: self];
+	[a unionSet: b];
+	return a;
+}
+
+@end
+
+@implementation NSDictionary (FoundationExtensions)
+
+- (NSDictionary*) dictionaryBySettingObject: (id) obj forKey: (id<NSCopying>) key
+{
+	NSMutableDictionary* dict = [self mutableCopy];
+	[dict setObject: obj forKey: key];
+	return dict;
+}
+
+@end
+
+
+
+
+
+
