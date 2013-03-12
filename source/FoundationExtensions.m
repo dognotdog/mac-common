@@ -83,7 +83,33 @@
 	return result;
 }
 
+- (NSArray*) arraysBySlicingAfterLimit: (NSUInteger) numLimit
+{
+	NSMutableArray* array = [NSMutableArray arrayWithCapacity: self.count/numLimit+1];
+	NSUInteger numSlices = ((self.count+numLimit-1)/numLimit);
+	for (NSUInteger i = 0; i < numSlices; ++i)
+		[array addObject: [[NSMutableArray alloc] init]];
 
+	[self enumerateObjectsUsingBlock: ^(id obj, NSUInteger idx, BOOL *stop) {
+		[[array objectAtIndex: idx/numLimit] addObject: obj];
+	}];
+
+	
+	return array;
+}
+
+- (NSArray*) arraysByDeinterleavingColumns: (NSUInteger) numColumns
+{
+	NSMutableArray* columns = [NSMutableArray arrayWithCapacity: numColumns];
+	for (NSUInteger i = 0; i < numColumns; ++i)
+		[columns addObject: [[NSMutableArray alloc] init]];
+	
+	[self enumerateObjectsUsingBlock: ^(id obj, NSUInteger idx, BOOL *stop) {
+		[[columns objectAtIndex: (idx % numColumns)] addObject: obj];
+	}];
+	
+	return columns;
+}
 
 @end
 

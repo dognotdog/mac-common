@@ -22,6 +22,8 @@
 - (NSArray*) arrayByRemovingLastObject;
 
 - (NSArray*) continuousSubarraysWithCommonProperty: (BOOL (^)(id referenceObject, id obj)) block;
+- (NSArray*) arraysByDeinterleavingColumns: (NSUInteger) numColumns;
+- (NSArray*) arraysBySlicingAfterLimit: (NSUInteger) numLimit;
 
 @end
 
