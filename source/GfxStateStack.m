@@ -32,6 +32,7 @@
 	BOOL polygonOffsetEnabled;
 	GLfloat polygonOffsetUnits, polygonOffsetFactor;
 	GLint polygonMode;
+	GLfloat pointSize;
 
 	BOOL depthTestEnabled;
 	BOOL blendingEnabled;
@@ -48,6 +49,7 @@
 	int depthTestEnabledFlags;
 	int blendingEnabledFlags, blendingModeFlags;
 	int cullingFlags, polygonOffsetFlags, polygonModeFlags;
+	int pointSizeFlags;
 	int framebufferFlags;
 	
 	GfxStateStack*          parent;
@@ -63,6 +65,7 @@
     projectionMatrix = mIdentity();
     color = vOne();
     lightPos = vZero();
+	pointSize = 1.0;
     
     modelViewMatrixFlags = GSS_FLAG_SET;
     projectionMatrixFlags = GSS_FLAG_SET;
@@ -80,7 +83,7 @@
     return self;
 }
 
-@synthesize shader, modelViewMatrix, projectionMatrix, color, lightPos, blendingDstMode, blendingSrcMode, blendingEnabled, depthTestEnabled, framebuffer, cullingEnabled, frontFace, cullFace, polygonOffsetEnabled, polygonOffsetUnits, polygonOffsetFactor, polygonMode;
+@synthesize shader, modelViewMatrix, projectionMatrix, color, lightPos, blendingDstMode, blendingSrcMode, blendingEnabled, depthTestEnabled, framebuffer, cullingEnabled, frontFace, cullFace, polygonOffsetEnabled, polygonOffsetUnits, polygonOffsetFactor, polygonMode, pointSize;
 
 #define MODFLAGS								\
 {												\
@@ -97,7 +100,8 @@
 	MODFLAG(framebufferFlags);					\
 	MODFLAG(cullingFlags);						\
 	MODFLAG(polygonOffsetFlags);				\
-	MODFLAG(polygonModeFlags);						\
+	MODFLAG(polygonModeFlags);					\
+	MODFLAG(pointSizeFlags);					\
 }
 
 - (GfxStateStack*) pushState
@@ -122,6 +126,7 @@
 	copy->polygonOffsetUnits = polygonOffsetUnits;
 	copy->polygonOffsetFactor = polygonOffsetFactor;
 	copy->polygonMode = polygonMode;
+	copy->pointSize = pointSize;
 	copy->depthTestEnabled = depthTestEnabled;
 	copy->blendingEnabled = blendingEnabled;
 	copy->blendingSrcMode = blendingSrcMode;
@@ -241,6 +246,9 @@
 	{
 		glPolygonMode(GL_FRONT_AND_BACK, polygonMode);
 	}
+	if (FLAGCHANGED(pointSizeFlags))
+		glPointSize(pointSize);
+
 	if (FLAGCHANGED(depthTestEnabledFlags))
 		depthTestEnabled ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
 	if (FLAGCHANGED(blendingEnabledFlags))
@@ -423,6 +431,12 @@
 {
 	polygonOffsetFactor = f;
 	polygonOffsetFlags |= GSS_FLAG_SET;
+}
+
+- (void) setPointSize:(GLfloat)f
+{
+	pointSize = f;
+	pointSizeFlags |= GSS_FLAG_SET;
 }
 
 

@@ -214,6 +214,16 @@ void	_LogGLError(NSString* str);
 
 @end
 
+@interface GfxPointSizeNode : NSObject
+{
+	GLfloat pointSize;
+}
+
+@property(nonatomic) GLfloat pointSize;
+
+@end
+
+
 @interface SimpleMaterialNode : NSObject
 {
 	vector_t diffuseColor;

@@ -45,6 +45,24 @@ static inline void* memcpy_ntohl(uint32_t* dst, const void* src, size_t count)
 	return dst;
 }
 
+
+// http://burtleburtle.net/bob/hash/doobs.html
+// Bob Jenkins' one-at-a-time hash function
+static inline uint32_t one_at_a_time_hash32(const uint8_t *key, size_t len)
+{
+	uint32_t   hash = 0;
+	for (size_t i=0; i<len; ++i)
+	{
+		hash += key[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+	}
+	hash += (hash << 3);
+	hash ^= (hash >> 11);
+	hash += (hash << 15);
+	return hash;
+}
+
 @interface NSSet (FoundationExtensions)
 
 - (NSSet*) xorSetWithSet: (NSSet*) set;

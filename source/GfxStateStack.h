@@ -50,5 +50,6 @@
 @property(nonatomic) BOOL polygonOffsetEnabled;
 @property(nonatomic) GLfloat polygonOffsetUnits;
 @property(nonatomic) GLfloat polygonOffsetFactor;
+@property(nonatomic) GLfloat pointSize;
 
 @end

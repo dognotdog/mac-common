@@ -93,6 +93,27 @@ static int _extension_supported(const char *extension)
 
 @end
 
+@implementation GfxPointSizeNode
+
+@synthesize pointSize;
+
+- (void) preDrawWithState: (GfxStateStack*) gfxState
+{
+	gfxState.pointSize = pointSize;
+}
+- (void) postDrawWithState: (GfxStateStack*) gfxState
+{
+}
+
+- (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
+{
+	return NO;
+}
+
+
+@end
+
+
 
 @implementation SimpleMaterialNode
 
