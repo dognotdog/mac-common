@@ -8,6 +8,20 @@
 
 #import "FoundationExtensions.h"
 
+dispatch_source_t dispatch_coalesce_source_create(dispatch_queue_t queue)
+{
+    dispatch_source_t src = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
+	dispatch_resume(src);
+	return src;
+}
+
+void dispatch_coalesce(dispatch_source_t src, double time, void (^block)(void))
+{
+	dispatch_source_set_timer(src, dispatch_time(DISPATCH_TIME_NOW, time * NSEC_PER_SEC), DISPATCH_TIME_FOREVER, 0);
+	dispatch_source_set_event_handler(src, block);
+}
+
+
 @implementation NSArray (FoundationExtensions)
 
 - (NSArray *)map: (id (^)(id obj))block
@@ -15,8 +29,10 @@
 	NSMutableArray *new = [[NSMutableArray alloc] initWithCapacity: [self count]];
 	for(id obj in self)
 	{
-		id newObj = block(obj);
-		[new addObject: newObj ? newObj : [NSNull null]];
+		@autoreleasepool {
+			id newObj = block(obj);
+			[new addObject: newObj ? newObj : [NSNull null]];
+		}
 	}
 	return new;
 }

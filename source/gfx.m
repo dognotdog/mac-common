@@ -964,6 +964,7 @@ static int _extension_supported(const char *extension)
 
 - (BOOL) drawHierarchyWithState: (GfxStateStack*) state
 {
+	[state submitState];
 	[self justDraw];
 	
 	return NO;

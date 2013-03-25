@@ -8,6 +8,10 @@
 
 #import <Foundation/Foundation.h>
 
+dispatch_source_t dispatch_coalesce_source_create(dispatch_queue_t queue);
+void dispatch_coalesce(dispatch_source_t src, double time, void (^block)(void));
+
+
 @interface NSArray (FoundationExtensions)
 
 - (NSArray*) map: (id (^)(id obj)) block;
