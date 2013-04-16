@@ -690,6 +690,15 @@ static inline vmfloat_t vAngleBetweenVectors(vector_t a, vector_t b)
 	return atan2(vLength(vy), vLength(vx));
 };
 
+/*
+static inline vmfloat_t vAngleBetweenVectors2D(vector_t a, vector_t b)
+{
+	vector_t vx = vProjectAOnB(a,b);
+	vector_t vy = v3Sub(a, vx);
+	return atan2(vLength(vy), vLength(vx));
+};
+*/
+
 static inline double vAngleWithNormal(vector_t a, vector_t b, vector_t n)
 {
 	vector_t ra = vSetLength(v3Sub(a, v3MulScalar(n, vDot(a,n))), 1.0);

@@ -99,6 +99,9 @@ void	_LogGLError(NSString* str);
 
 - (void) updateVertices: (vector_t*) v inRange: (NSRange) r;
 
+- (GfxMesh*) meshWithCoalescedVertices;
+- (GfxMesh*) meshWithoutDegenerateTriangles;
+
 - (void) appendMesh: (GfxMesh*) mesh;
 - (void) addBatch: (GfxMesh_batch*) batch;
 - (void) removeAllBatches;

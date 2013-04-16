@@ -63,6 +63,11 @@ static int _extension_supported(const char *extension)
 {
 }
 
+- (id) copy
+{
+	return [GfxMesh_batch batchStarting: begin count: count mode: drawMode];
+}
+
 @synthesize begin, count, drawMode;
 
 @end
@@ -683,6 +688,122 @@ static int _extension_supported(const char *extension)
 		[batches addObject: [GfxMesh_batch batchStarting: begin + indexOffset count: count mode: mode]];
 	}
 }
+
+- (GfxMesh*) meshWithoutDegenerateTriangles
+{
+	assert(numIndices);
+	assert(batches.count == 1);
+	
+	uint32_t* newIndices = calloc(sizeof(*newIndices), numIndices);
+	size_t numNewIndices = 0;
+	
+	size_t skippedTriangles = 0;
+	
+	for (GfxMesh_batch* batch in batches)
+	{
+		assert(batch.drawMode == GL_TRIANGLES);
+		for (size_t i = 0; i < batch.count/3; ++i)
+		{
+			uint32_t a = indices[3*i+0];
+			uint32_t b = indices[3*i+1];
+			uint32_t c = indices[3*i+2];
+			
+			if ((a!=b) && (b!=c) && (c!=a))
+			{
+				newIndices[numNewIndices++]=a;
+				newIndices[numNewIndices++]=b;
+				newIndices[numNewIndices++]=c;
+			}
+			else
+				skippedTriangles++;
+		}
+	}
+
+	GfxMesh* newMesh = [[GfxMesh alloc] init];
+	
+	[newMesh addVertices: vertices count: numVertices];
+	[newMesh addNormals: normals count: numNormals];
+	[newMesh addColors: colors count: numColors];
+	[newMesh addTexCoords: texCoords count: numTexCoords];
+
+	[newMesh addDrawArrayIndices: newIndices count: numNewIndices withMode: GL_TRIANGLES];
+
+	NSLog(@"skipped %zd triangles", skippedTriangles);
+
+	free(newIndices);
+	
+	return newMesh;
+	
+}
+
+- (GfxMesh*) meshWithCoalescedVertices
+{
+	assert(numColors == 0);
+	assert(numTexCoords == 0);
+	assert(numNormals == numVertices);
+//	double threshold = FLT_EPSILON;
+	vector_t* newVertices = calloc(sizeof(*newVertices), numVertices);
+	vector_t* newNormals = calloc(sizeof(*newNormals), numVertices);
+	size_t numNewVertices = 0;
+	uint32_t* map = memset(calloc(sizeof(*map), numVertices), -1, sizeof(*map)*numVertices);
+	
+	size_t numCoalescedVertices = 0;
+	
+	for (size_t i = 0; i < numVertices; ++i)
+	{
+		vector_t a = vertices[i];
+		
+		if (map[i] == UINT32_MAX)
+		{
+			size_t k = numNewVertices++;
+			newVertices[k] = a;
+			if (numNormals)
+			{
+				vector_t normal = normals[i];
+				newNormals[k] = normal;
+			}
+			map[i] = k;
+			
+			for (size_t j = i+1; j < numVertices; ++j)
+			{
+				vector_t b = vertices[j];
+				if (v3Equal(a, b))
+				{
+					map[j] = k;
+					numCoalescedVertices++;
+				}
+			}
+		}
+		
+	}
+	
+	uint32_t* newIndices = calloc(sizeof(*newIndices), numIndices);
+	for (size_t i = 0; i < numIndices; ++i)
+	{
+		newIndices[i] = map[indices[i]];
+	}
+	
+	GfxMesh* newMesh = [[GfxMesh alloc] init];
+	
+	[newMesh addVertices: newVertices count: numNewVertices];
+	[newMesh addNormals: newNormals count: numNewVertices];
+	[newMesh addIndices: newIndices count: numIndices offset: 0];
+	
+	for (GfxMesh_batch* batch in batches)
+	{
+		[newMesh->batches addObject: [batch copy]];
+	}
+	
+	free(map);
+	free(newVertices);
+	free(newNormals);
+	free(newIndices);
+	
+	NSLog(@"coalesced %zd vertices", numCoalescedVertices);
+	
+	return newMesh;
+}
+
 
 - (void) submitDirtyBuffers
 {

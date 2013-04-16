@@ -31,14 +31,19 @@ static inline CGSize CGSizeScaleDownIntoSize(CGSize a, CGSize b)
 	return c;
 }
 
-static inline CGSize CGSizeFitToSize(CGSize a, CGSize b)
+static inline double CGSizeFitScaleFactor(CGSize a, CGSize b)
 {
 	float heightR = a.height/b.height;
 	float widthR = a.width/b.width;
 	
 	float minr = fmaxf(heightR,widthR);
+	return 1.0/minr;
+}
+static inline CGSize CGSizeFitToSize(CGSize a, CGSize b)
+{	
+	float f = CGSizeFitScaleFactor(a, b);
 	
-	CGSize c = CGSizeMake(a.width*(1.0f/minr), a.height*(1.0f/minr));
+	CGSize c = CGSizeMake(a.width*f, a.height*f);
 	
 	return c;
 }
