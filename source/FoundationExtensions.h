@@ -79,3 +79,18 @@ static inline uint32_t one_at_a_time_hash32(const uint8_t *key, size_t len)
 
 @end
 
+#define SuppressPerformSelectorLeakWarning(Stuff) \
+do { \
+_Pragma("clang diagnostic push") \
+_Pragma("clang diagnostic ignored \"-Warc-performSelector-leaks\"") \
+Stuff; \
+_Pragma("clang diagnostic pop") \
+} while (0)
+
+#define SuppressSelfCaptureWarning(Stuff) \
+{ \
+_Pragma("clang diagnostic push") \
+_Pragma("clang diagnostic ignored \"-Warc-retain-cycles\"") \
+Stuff; \
+_Pragma("clang diagnostic pop") \
+}

@@ -681,23 +681,22 @@ static inline vector_t vAverage(vector_t a, vector_t b)
 static inline vector_t vNormal(vector_t a, vector_t b, vector_t c)
 {
 	 return vCross(v3Sub(b, a), v3Sub(c, a));
-};
+}
 
 static inline vmfloat_t vAngleBetweenVectors(vector_t a, vector_t b)
 {
 	vector_t vx = vProjectAOnB(a,b);
 	vector_t vy = v3Sub(a, vx);
 	return atan2(vLength(vy), vLength(vx));
-};
+}
 
-/*
+
 static inline vmfloat_t vAngleBetweenVectors2D(vector_t a, vector_t b)
 {
-	vector_t vx = vProjectAOnB(a,b);
-	vector_t vy = v3Sub(a, vx);
-	return atan2(vLength(vy), vLength(vx));
-};
-*/
+	double y = vCross(a,b).farr[2];
+	double x = vDot(a, b);
+	return atan2(y, x);
+}
 
 static inline double vAngleWithNormal(vector_t a, vector_t b, vector_t n)
 {
@@ -708,7 +707,7 @@ static inline double vAngleWithNormal(vector_t a, vector_t b, vector_t n)
 	if (vDot(n,nn) < 0.0)
 		t = -t;
 	return t;
-};
+}
 
 static inline vector_t vRotateAroundAxisAngle(vector_t a, vector_t n, double t)
 {

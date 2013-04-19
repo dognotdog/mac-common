@@ -881,7 +881,7 @@ static float _lookupLightmap(float* texels, int width, int height, float u, floa
 	int newWidth = (r.maxv.farr[0]-r.minv.farr[0])/xdiv + 1;
 	int newHeight = (r.maxv.farr[1]-r.minv.farr[1])/ydiv + 1;
 
-	float oldMin = minValue, oldMax = maxValue;
+//	float oldMin = minValue, oldMax = maxValue;
 	
 	minValue = INFINITY; maxValue = -INFINITY;
 	

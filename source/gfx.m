@@ -1071,7 +1071,7 @@ static int _extension_supported(const char *extension)
 - (void) justDraw
 {
     if (drawSelector)
-        [self performSelector: drawSelector];
+        SuppressPerformSelectorLeakWarning([self performSelector: drawSelector]);
     else
         [self drawBatches];
 }
