@@ -69,23 +69,35 @@
 	
 	for (GLDrawableSetupBlock block in sBlocks)
 		block();
-	
+	@synchronized (drawables)
+	{
+		NSMutableArray* dummyArray = [[NSMutableArray alloc] init];
 	for (id key in drawableKeys)
 	{
 		GLDrawableUpdateBlock block = [blocks objectForKey: key];
 		id obj = nil;
 		if (block)
 			obj = [block() copy];
+		id dummy = [drawables objectForKey: key];
+		if (dummy)
+			[dummyArray addObject: dummy]; // FIXME: attempt to discover what's crashing no release exactly
 		if (obj)
 			[drawables setObject: obj forKey: key];
 		else
 			[drawables removeObjectForKey: key];
+		
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[dummyArray removeAllObjects];
+		});
+	}
 	}
 }
 
 - (void) draw
 {
 	GfxStateStack* gfxState = (rootState ? rootState : [[GfxStateStack alloc] init]);
+	@synchronized(drawables)
+	{
 	for (id key in drawableKeys)
 	{
 		GLDrawableBlock block = [drawables objectForKey: key];
@@ -94,6 +106,7 @@
 			block(gfxState = [gfxState pushState]);
 			gfxState = [gfxState popState];
 		}
+	}
 	}
 }
 

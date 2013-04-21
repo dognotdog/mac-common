@@ -78,6 +78,12 @@ void dispatch_coalesce(dispatch_source_t src, double time, void (^block)(void))
 	
 	return ary;
 }
+- (NSArray*) arrayByInsertingObject:(id)obj atIndex:(NSUInteger)index
+{
+	NSMutableArray* ary = [self mutableCopy];
+	[ary insertObject: obj  atIndex: index];
+	return ary;
+}
 
 - (NSArray*) arrayByRemovingObject:(id)obj
 {

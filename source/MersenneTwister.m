@@ -75,32 +75,32 @@ void DeallocMTwisterC(MTwisterC* mtwist)
 	mtwist->mt = NULL;
 }
 
-void MTwisterCRefill(int mti, unsigned int* mt)
-{
-    unsigned int y;
-	static unsigned int mag01[2] = {0x0, MATRIX_A};
-    
-	/* mag01[x] = x * MATRIX_A  for x=0,1 */// generate N words at one time 
-    int kk;
-
-/*		if (mti == N+1)		// if sgenrand() has not been called,
-        sgenrand(4357); // a default initial seed is used
-*/
-    for (kk = 0; kk < N-M; kk++)
-    {
-        y = (mt[kk]&UPPER_MASK)|(mt[kk+1]&LOWER_MASK);
-        mt[kk] = mt[kk+M] ^ (y >> 1) ^ mag01[y & 0x1];
-    };
-    for (; kk < N-1; kk++)
-    {
-        y = (mt[kk]&UPPER_MASK)|(mt[kk+1]&LOWER_MASK);
-        mt[kk] = mt[kk+(M-N)] ^ (y >> 1) ^ mag01[y & 0x1];
-    };
-    y = (mt[N-1]&UPPER_MASK)|(mt[0]&LOWER_MASK);
-    mt[N-1] = mt[M-1] ^ (y >> 1) ^ mag01[y & 0x1];
-
-    mti = 0;
-}
+//void MTwisterCRefill(int mti, unsigned int* mt)
+//{
+//    unsigned int y;
+//	static unsigned int mag01[2] = {0x0, MATRIX_A};
+//    
+//	/* mag01[x] = x * MATRIX_A  for x=0,1 */// generate N words at one time 
+//    int kk;
+//
+///*		if (mti == N+1)		// if sgenrand() has not been called,
+//        sgenrand(4357); // a default initial seed is used
+//*/
+//    for (kk = 0; kk < N-M; kk++)
+//    {
+//        y = (mt[kk]&UPPER_MASK)|(mt[kk+1]&LOWER_MASK);
+//        mt[kk] = mt[kk+M] ^ (y >> 1) ^ mag01[y & 0x1];
+//    };
+//    for (; kk < N-1; kk++)
+//    {
+//        y = (mt[kk]&UPPER_MASK)|(mt[kk+1]&LOWER_MASK);
+//        mt[kk] = mt[kk+(M-N)] ^ (y >> 1) ^ mag01[y & 0x1];
+//    };
+//    y = (mt[N-1]&UPPER_MASK)|(mt[0]&LOWER_MASK);
+//    mt[N-1] = mt[M-1] ^ (y >> 1) ^ mag01[y & 0x1];
+//
+//    mti = 0;
+//}
 
 @implementation MersenneTwister
 

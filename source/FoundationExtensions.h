@@ -20,6 +20,7 @@ void dispatch_coalesce(dispatch_source_t src, double time, void (^block)(void));
 
 - (NSArray*) arrayByRemovingObjectsAtIndexes: (NSIndexSet*) indexes;
 - (NSArray*) arrayByInsertingObjects: (NSArray*) ary atIndexes: (NSIndexSet*) indexes;
+- (NSArray*) arrayByInsertingObject: (id) obj atIndex: (NSUInteger) index;
 
 - (NSArray*) arrayByRemovingObject: (id) obj;
 - (NSArray*) arrayByRemovingObjectsInArray: (NSArray*) ary;

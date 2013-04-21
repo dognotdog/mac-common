@@ -14,16 +14,96 @@
 #import <mach/mach.h>
 #import <CoreFoundation/CFNumber.h>
 
+#define VID_LOGITECH	0x46D
+#define PID_G27_CMODE	0xC294
+#define PID_G27_NMODE	0xC29B
+
+#define USER_MODE_WHEEL_COMMANDS_ENABLED	0
+
 io_service_t			g27DeviceRef = 0;
 
-static const uint8_t g27_native_mode_cmd[2][8] = {
+static uint8_t g27_native_mode_cmd[2][8] = {
 	{0xF8, 0x0A, 0,0,0,0,0,0},
 	{0xF8, 0x09, 0x04, 0x01, 0,0,0,0}
 };
 
-static const uint8_t g27_full_range_cmd[1][8] = {
+static uint8_t g27_full_range_cmd[1][8] = {
 	{0xF8, 0x81, 900 & 0xFF, (900 >> 8) & 0xFF, 0,0,0,0}
 };
+
+static void _setG27Leds(IOHIDDeviceRef device, uint8_t LEDs)
+{
+
+	/*
+	 +        report->field[0]->value[0] = 0xf8;
+	 +        report->field[0]->value[1] = 0x12;
+	 +        report->field[0]->value[2] = leds;
+	 +        report->field[0]->value[3] = 0x00;
+	 +        report->field[0]->value[4] = 0x00;
+	 +        report->field[0]->value[5] = 0x00;
+	 +        report->field[0]->value[6] = 0x00;
+	 */
+
+	uint8_t buf[7] = {0xF8, 0x12, LEDs, 0,0,0,0};
+
+	IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 0, buf, 7);
+}
+
+
+static void _setG27Autocenter(IOHIDDeviceRef device, uint8_t speed, uint8_t force)
+{
+	/*
+	 * Native method to set autcenter behaviour of LT wheels.
+	 *
+	 * Based on a post by "anrp" on the vdrift forum:
+	 * http://vdrift.net/Forum/viewtopic.php?t=412&postdays=0&postorder=asc&start=60
+	 *
+	 *  fe0b0101ff - centering spring, slow spring ramp
+	 *  ____^^____ - left ramp speed
+	 *  ______^^__ - right ramp speed
+	 *  ________^^ - overall strength
+	 *
+	 * Rampspeed seems to be limited to 0-7 only.
+	 */
+
+/*
+	{ {0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, "Reset effects"},
+	{ {0xFE, 0x0D, 0x07, 0x07, 0xFF, 0x00, 0x00, 0x00}, "Full autocentering"},
+	{ {0xFE, 0x0D, 0x03, 0x03, 0x80, 0x00, 0x00, 0x00}, "Medium autocentering"},
+	{ {0xFE, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, "No autocentering"},
+	
+	//Test constant force
+	{ {0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, "Reset effects"},
+	{ {0x11, 0x08, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x00}, "Full left constant force"},
+	{ {0x11, 0x08, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00}, "Full right constant force"},
+	{ {0x11, 0x08, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00}, "No constant force"},
+	
+	//Remove autocentering and constant force
+	{ {0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, "Reset effects"},
+	{ {0xFE, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, "No autocentering"},
+	
+	//Test friction
+	{ {0x21, 0x02, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00}, "Clockwise resistance"},
+	{ {0x21, 0x02, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00}, "Counter-clockwise resistance"},
+	{ {0x21, 0x02, 0x0F, 0x00, 0x0F, 0x00, 0x00, 0x00}, "Resistance both ways"},
+	{ {0x21, 0x02, 0x0F, 0x01, 0x0F, 0x01, 0x00, 0x00}, "'Assistance' both ways"},
+	{ {0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, "Reset friction"}
+*/
+	
+	/*
+	 225         value[0] = 0xfe;
+	 226         value[1] = 0x0d;
+	 227         value[2] = magnitude >> 13;
+	 228         value[3] = magnitude >> 13;
+	 229         value[4] = magnitude >> 8;
+	 230         value[5] = 0x00;
+	 231         value[6] = 0x00;
+	 */
+
+	uint8_t buf[7] = {0xFE, 0x0d, speed, speed, force,0,0};
+
+	IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 0, buf, 7);
+}
 
 
 IOReturn FindInterfaces(IOUSBDeviceInterface **device)
@@ -41,8 +121,8 @@ IOReturn FindInterfaces(IOUSBDeviceInterface **device)
     UInt8                       interfaceNumEndpoints;
     int                         pipeRef;
 	
-    UInt32                      numBytesRead;
-    UInt32                      i;
+//    UInt32                      numBytesRead;
+//	  UInt32                      i;
 	
     //Placing the constant kIOUSBFindInterfaceDontCare into the following
     //fields of the IOUSBFindInterfaceRequest structure will allow you
@@ -55,7 +135,7 @@ IOReturn FindInterfaces(IOUSBDeviceInterface **device)
     //Get an iterator for the interfaces on the device
     kr = (*device)->CreateInterfaceIterator(device,
 											&request, &iterator);
-    while (usbInterface = IOIteratorNext(iterator))
+    while ((usbInterface = IOIteratorNext(iterator)))
     {
         //Create an intermediate plug-in
         kr = IOCreatePlugInInterfaceForService(usbInterface,
@@ -416,8 +496,10 @@ static NSDictionary* _usageNameDict(void)
 static NSString* _usageToString(uint32_t usagePage, uint32_t usage)
 {
 	NSDictionary* usageDict = _usageNameDict();
-	NSDictionary* pageDict = [usageDict objectForKey: [NSString stringWithFormat:@"0x%4.4X", usagePage]];
-	NSString* usageName = [pageDict objectForKey: [NSString stringWithFormat:@"0x%4.4X", usage]];
+	NSString* pageKey = [NSString stringWithFormat:@"0x%4.4X", usagePage];
+	NSString* nameKey = [NSString stringWithFormat:@"0x%4.4X", usage];
+	NSDictionary* pageDict = [usageDict objectForKey: pageKey];
+	NSString* usageName = [pageDict objectForKey: nameKey];
 	return [NSString stringWithFormat: @"%@, %@", [pageDict objectForKey: @"Name"], usageName];
 }
 
@@ -426,11 +508,11 @@ static void _InputValueCallback(void *inContext, IOReturn inResult, void *inSend
 {
 //	NSLog(@"HID value incoming");
 	
-	IOHIDElementRef element = IOHIDValueGetElement(inValue);
+//	IOHIDElementRef element = IOHIDValueGetElement(inValue);
 	
 	
-	uint32_t usagePage = IOHIDElementGetUsagePage(element);
-	uint32_t usage = IOHIDElementGetUsage(element);
+//	uint32_t usagePage = IOHIDElementGetUsagePage(element);
+//	uint32_t usage = IOHIDElementGetUsage(element);
 //	NSLog(@"  usage  (0x%X,0x%X)   = %@", usagePage, usage, _usageToString(usagePage, usage));
 	
 	// call the class method
@@ -451,7 +533,7 @@ static void _InputValueCallback(void *inContext, IOReturn inResult, void *inSend
 	NSTableView*	controlsTable;
 }
 
-@synthesize controlWindow, controlsTable;
+@synthesize controlWindow, controlsTable, inputCallback;
 
 - (id)init
 {
@@ -462,7 +544,7 @@ static void _InputValueCallback(void *inContext, IOReturn inResult, void *inSend
 	elementValuesPerDevice = [NSMutableDictionary dictionary];
 	elementsPerDevice = [NSMutableDictionary dictionary];
 
-	[self initUSB];
+//	[self initUSB];
 
 	[self performSelector: @selector(initHID) withObject: nil afterDelay: 1.0];
 //	[self initHID];
@@ -538,6 +620,42 @@ static void _logElements(NSArray* elements)
 	NSLog(@"Device matched: 0x%X %@ 0x%X %@ %@ %@ %@", [productId intValue], product, [vendorId intValue], manufacturer, usage, primaryUsagePage, primaryUsage);
 //	NSLog(@"[device description] = %@", [(__bridge id)device description]);
 	
+	if (USER_MODE_WHEEL_COMMANDS_ENABLED)
+	{
+		if (([vendorId unsignedIntValue] == VID_LOGITECH) && ([productId unsignedIntValue] == PID_G27_CMODE))
+		{
+			NSLog(@"Detected compatibility mode wheel, attempting to reset.");
+			IOReturn err = 0;
+			
+			IOHIDDeviceOpen(device, kIOHIDOptionsTypeNone);
+			
+			assert(!(err = IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 0, g27_native_mode_cmd[0], 8)));
+			assert(!(err = IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 0, g27_native_mode_cmd[1], 8)));
+			
+			IOHIDDeviceClose(device, kIOHIDOptionsTypeNone);
+			
+			return;
+		}
+	}
+	if (1)
+	{
+		if (([vendorId unsignedIntValue] == VID_LOGITECH) && ([productId unsignedIntValue] == PID_G27_NMODE))
+		{
+			NSLog(@"Detected native mode wheel, attempting to unlock full range.");
+			
+			IOHIDDeviceOpen(device, kIOHIDOptionsTypeNone);
+			
+			IOHIDDeviceSetReport(device, kIOHIDReportTypeOutput, 0, g27_full_range_cmd[0], 8);
+			
+			_setG27Leds(device, 3);
+			_setG27Autocenter(device, 0x05, 0xFF);
+			
+			IOHIDDeviceClose(device, kIOHIDOptionsTypeNone);
+		}
+	}
+	
+	
+	
 	IOHIDDeviceRegisterInputValueCallback(device, _InputValueCallback,  (__bridge void*)self);
 	IOHIDDeviceOpen(device, kIOHIDOptionsTypeNone);
 
@@ -550,6 +668,10 @@ static void _logElements(NSArray* elements)
 	
 	[controlsTable reloadData];
 		
+	
+	
+	
+
 }
 
 - (void) deviceRemoved: (IOHIDDeviceRef) device sender: (void*) sender result: (IOReturn) result
@@ -623,13 +745,18 @@ static const __unsafe_unretained NSString* IOHIDDeviceUsagePageKey = (__bridge N
 		NSLog(@"Couldn't open IOHIDManager.");
 	}
 
-//	IOHIDManagerRegisterInputValueCallback(hidManager, _InputValueCallback, (__bridge void*)self);
-}   
+}
 
 - (void) shutdownHID
 {
 	IOHIDManagerUnscheduleFromRunLoop(hidManager, CFRunLoopGetCurrent(), kCFRunLoopCommonModes);
 	IOHIDManagerClose(hidManager, 0);
+}
+
+
+- (id) displayNameForUsagePage: (int) usagePage usage: (int) usage
+{
+	return _usageToString(usagePage, usage);
 }
 
 - (void) inputValueResult: (IOReturn) inResult sender: (void*) inSender value: (IOHIDValueRef) inValue
@@ -652,11 +779,22 @@ static const __unsafe_unretained NSString* IOHIDDeviceUsagePageKey = (__bridge N
 	uint32_t usage = IOHIDElementGetUsage(element);
 //	NSLog(@" %d,%p usage  (0x%X,0x%X)   = %@", (int)cookie, element, usagePage, usage, _usageToString(usagePage, usage));
 //	NSLog(@" device                     = %p", device);
+	
+	if (controlWindow.isVisible)
+	{
+		NSDictionary* elements = [elementsPerDevice objectForKey: deviceKey];
+		NSArray* keys = [[elements allKeys] sortedArrayUsingSelector: @selector(compare:)];
 
-	NSDictionary* elements = [elementsPerDevice objectForKey: deviceKey];
-	NSArray* keys = [[elements allKeys] sortedArrayUsingSelector: @selector(compare:)];
-
-	[controlsTable reloadDataForRowIndexes: [NSIndexSet indexSetWithIndex: [keys indexOfObject: elementKey]] columnIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(1, 2)]];
+		[controlsTable reloadDataForRowIndexes: [NSIndexSet indexSetWithIndex: [keys indexOfObject: elementKey]] columnIndexes: [NSIndexSet indexSetWithIndexesInRange: NSMakeRange(0, 3)]];
+	}
+	
+	double y = IOHIDValueGetScaledValue(inValue, kIOHIDValueScaleTypePhysical);
+	double ymin = IOHIDElementGetPhysicalMin(element);
+	double ymax = IOHIDElementGetPhysicalMax(element);
+	y = (y-ymin)/(ymax-ymin);
+	
+	if (inputCallback)
+		inputCallback(y, deviceKey, usagePage, usage);
 }
 
 static NSArray* _flattenedChildren(NSArray* elements)
@@ -725,6 +863,24 @@ static NSDictionary* _flatElementList(IOHIDDeviceRef device)
 			return [NSNumber numberWithLong: IOHIDElementGetPhysicalMax((__bridge void*)element)];
 		case 5:
 			return _elementTypeToString(IOHIDElementGetType((__bridge void*)element));
+		case 6:
+		{
+			uint32_t usagePage = IOHIDElementGetUsagePage((__bridge void*)element);
+			uint32_t usage = IOHIDElementGetUsage((__bridge void*)element);
+			
+			NSString* usageString = [NSString stringWithFormat: @"0x%4.4X, 0x%4.4X", usagePage, usage];
+			
+			return usageString;
+		}
+		case 7:
+		{
+			uint32_t usagePage = IOHIDElementGetUsagePage((__bridge void*)element);
+			uint32_t usage = IOHIDElementGetUsage((__bridge void*)element);
+			
+			NSString* usageString = _usageToString(usagePage, usage);
+			
+			return usageString;
+		}
 			
 		default:
 			return @"???";
@@ -762,10 +918,10 @@ static NSDictionary* _flatElementList(IOHIDDeviceRef device)
 	NSDictionary* elements = [elementsPerDevice objectForKey: deviceKey];
 	NSArray* keys = [[elements allKeys] sortedArrayUsingSelector: @selector(compare:)];
 	
-	NSDictionary* valuesDict = [elementValuesPerDevice objectForKey: deviceKey];
+//	NSDictionary* valuesDict = [elementValuesPerDevice objectForKey: deviceKey];
 	
 	id element = [elements objectForKey: [keys objectAtIndex: row]];
-	IOHIDElementCookie cookie = IOHIDElementGetCookie((__bridge void*)element);
+//	IOHIDElementCookie cookie = IOHIDElementGetCookie((__bridge void*)element);
 
 	switch ([[tableColumn identifier] intValue])
 	{

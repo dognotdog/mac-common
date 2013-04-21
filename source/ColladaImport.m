@@ -6,10 +6,11 @@
 //  Copyright 2008 Doemoetoer Gulyas. All rights reserved.
 //
 
+#import <OpenGL/gl3.h>
+
 #import "ColladaImport.h"
 #import "gfx.h"
 
-#import <OpenGL/gl3.h>
 
 
 

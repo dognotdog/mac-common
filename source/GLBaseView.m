@@ -15,7 +15,9 @@
 
 #import <Carbon/Carbon.h>
 #import <OpenGL/gl3.h>
-#import <CoreVideo/CoreVideo.h>
+
+#include <mach/mach_time.h> 
+//#import <CoreVideo/CoreVideo.h>
 
 static	NSOpenGLPixelFormatAttribute _formatAttribs[] = {
 	NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
@@ -38,11 +40,13 @@ const NSString* GLBaseViewViewportKey = @"GLBaseViewViewport";
 - (void) setOpenGLontext: (id) context;
 - (void) drawFrame;
 - (void) reshape;
-- (CVReturn) getFrameForTime: (const CVTimeStamp*) time;
 
 @end
 
 @implementation GLBaseView
+{
+	NSThread* renderThread;
+}
 
 @synthesize openGLContext, captureMouseEnabled, drawableBuffer, frameCount;
 
@@ -52,7 +56,7 @@ const NSString* GLBaseViewViewportKey = @"GLBaseViewViewport";
 	[self reshape];
 }
 
-
+/*
 static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp* now, const CVTimeStamp* outputTime, CVOptionFlags flagsIn, CVOptionFlags* flagsOut, void* displayLinkContext)
 {
 	@autoreleasepool {
@@ -61,6 +65,27 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 		return result;
 	}
 }
+*/
+- (void) threadedRender
+{
+	@autoreleasepool {
+		while (1)
+		{
+			uint64_t nanosecs = mach_absolute_time();
+			[self getFrameForTime: nanosecs*1.0e-9];
+		}
+	}
+}
+
+- (void) initThreadedRender
+{
+	renderThread = [[NSThread alloc] initWithTarget: self selector: @selector(threadedRender) object: nil];
+	
+	[renderThread start];
+	
+
+}
+
 
 static NSOpenGLContext* _sharedContext = nil;
 
@@ -93,6 +118,7 @@ static NSOpenGLContext* _sharedContext = nil;
 	[context setValues:&opacity forParameter: NSOpenGLCPSurfaceOpacity];
 	[context setValues:&vsync forParameter: NSOpenGLCPSwapInterval];
 	
+	/*
     CVDisplayLinkCreateWithActiveCGDisplays(&displayLink);
 	
     // Set the renderer output callback function
@@ -102,7 +128,7 @@ static NSOpenGLContext* _sharedContext = nil;
     CGLContextObj cglContext = [[self openGLContext] CGLContextObj];
     CGLPixelFormatObj cglPixelFormat = [fmt CGLPixelFormatObj];
     CVDisplayLinkSetCurrentCGDisplayFromOpenGLContext(displayLink, cglContext, cglPixelFormat);
-	
+	*/
 	
 	
 	
@@ -129,8 +155,8 @@ static NSOpenGLContext* _sharedContext = nil;
 	drawableBuffer = [[GLDrawableBuffer alloc] init];
 	
     // Activate the display link
-    CVDisplayLinkStart(displayLink);
-	
+   // CVDisplayLinkStart(displayLink);
+	[self initThreadedRender];
 	
 	return self;
 }
@@ -204,7 +230,7 @@ static NSOpenGLContext* _sharedContext = nil;
 	[self doesNotRecognizeSelector: _cmd];
 }
 
-- (void) drawForTime:(const CVTimeStamp *)outputTime
+- (void) drawForTime:(double)outputTime
 {
 	/*
 	NSLog(@"-drawForTime: is expected to be implemented by subclasses.");
@@ -246,13 +272,13 @@ static NSOpenGLContext* _sharedContext = nil;
 }
 
 
-- (CVReturn) getFrameForTime: (const CVTimeStamp*) outputTime
+- (void) getFrameForTime: (double) outputTime
 {
 	@autoreleasepool {
 		//	NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
 		
 		if (![[self openGLContext] view])
-			return kCVReturnSuccess;
+			return;
 		[[self openGLContext] makeCurrentContext];
 		
 		CGLLockContext(CGLGetCurrentContext());
@@ -308,7 +334,6 @@ static NSOpenGLContext* _sharedContext = nil;
 
 		frameCount++;
 		
-		return kCVReturnSuccess;
 	}
 }
 

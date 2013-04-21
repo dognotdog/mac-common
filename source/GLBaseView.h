@@ -9,15 +9,17 @@
 #import <Cocoa/Cocoa.h>
 
 // forward declare display link so we don't have to include <CoreVideo.h>, which idiotically forces inclusion of <gl.h>
+/*
 struct __CVDisplayLink;
 typedef struct __CVDisplayLink *CVDisplayLinkRef;
+*/
 
 @class NSOpenGLContext, GfxShader, GLString, GLDrawableBuffer;
 
 @interface GLBaseView : NSView
 {
 	NSOpenGLContext*	openGLContext;
-	CVDisplayLinkRef	displayLink;
+//	CVDisplayLinkRef	displayLink;
 	
 	GLDrawableBuffer* drawableBuffer;
 	
@@ -39,7 +41,7 @@ typedef struct __CVDisplayLink *CVDisplayLinkRef;
 - (void) reshape;
 
 - (void) setupView;
-- (void) drawForTime: (const CVTimeStamp*) outputTime;
+- (void) drawForTime: (double) outputTime;
 
 @property(nonatomic, strong) GLDrawableBuffer* drawableBuffer;
 @property(nonatomic, strong) NSOpenGLContext* openGLContext;

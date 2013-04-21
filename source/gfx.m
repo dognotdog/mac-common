@@ -12,6 +12,7 @@
 #import "gfx.h"
 #import "GfxShader.h"
 #import "GfxStateStack.h"
+#import "FoundationExtensions.h"
 //#import "pafs_basics.h"
 
 
@@ -1085,7 +1086,6 @@ static int _extension_supported(const char *extension)
 
 - (BOOL) drawHierarchyWithState: (GfxStateStack*) state
 {
-	[state submitState];
 	[self justDraw];
 	
 	return NO;
@@ -2393,17 +2393,25 @@ static GLint _viewportCache[4];
 
 - (void) addChild: (id) child
 {
-	if (child)
-		[children addObject: child];
+	@synchronized(children)
+	{
+		if (child)
+			[children addObject: child];
+	}
 }
 
 - (void) addChildrenFromArray: (NSArray*) array
 {
-	[children addObjectsFromArray: array];
+	@synchronized(children)
+	{
+		[children addObjectsFromArray: array];
+	}
 }
 
 - (id) firstChildNamed: (NSString*) cname
 {
+	@synchronized(children)
+	{
 	for (id child in children)
 	{
 		if ([child isKindOfClass: [GfxNode class]])
@@ -2419,6 +2427,7 @@ static GLint _viewportCache[4];
 		}
 	}
 	return nil;
+	}
 }
 
 
@@ -2431,6 +2440,9 @@ static GLint _viewportCache[4];
 
 - (BOOL) drawHierarchyWithState: (GfxStateStack*) gfxState
 {
+	@synchronized(children)
+	{
+
     assert(gfxState);
 	for (id child in children)
 	{
@@ -2452,12 +2464,15 @@ static GLint _viewportCache[4];
 	{
 		[child postDrawWithState: gfxState];
 	}
-
+	}
 	return YES;
 }
 
 - (void) optimizeTransforms
 {
+	@synchronized(children)
+	{
+
 	matrix_t m = mIdentity();
 	NSMutableArray* superflousTransforms = [NSMutableArray array];
 	for (id child in children)
@@ -2472,6 +2487,7 @@ static GLint _viewportCache[4];
 	[children removeObjectsInArray: superflousTransforms];
 	
 	[children insertObject: [[GfxTransformNode alloc] initWithMatrix: m] atIndex: 0];
+	}
 }
 
 - (matrix_t) localTransform
@@ -2489,6 +2505,9 @@ static GLint _viewportCache[4];
 
 - (void) setLocalTransform: (matrix_t) m
 {
+	@synchronized(children)
+	{
+
 	for (id child in children)
 	{
 		if ([child isKindOfClass: [GfxTransformNode class]])
@@ -2498,7 +2517,8 @@ static GLint _viewportCache[4];
 		}
 	}
 	
-	[children insertObject: [[GfxTransformNode alloc] initWithMatrix: m] atIndex: 0]; 
+	[children insertObject: [[GfxTransformNode alloc] initWithMatrix: m] atIndex: 0];
+	}
 }
 
 - (range3d_t) vertexBounds
