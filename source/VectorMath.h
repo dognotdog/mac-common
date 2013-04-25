@@ -1098,6 +1098,9 @@ static inline long xLineSegments2D(vector_t p0, vector_t p1, vector_t p2, vector
 }
 
 
+/*!
+ @return A vector which contains the intersection times on the rays r0 and r2, respectively. The first time is when r0 reaches the intersection point, the 2nd time is when r2 reaches it.
+ */
 static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r2)
 {
 	vmfloat_t d = vCross(r0, r2).farr[2];
