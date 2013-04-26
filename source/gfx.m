@@ -1174,12 +1174,12 @@ static int _extension_supported(const char *extension)
 		}
 		for (int i = 0; i < 6; ++i)
 		{
-			indices[6*i+0] = 6*i+0;
-			indices[6*i+1] = 6*i+1;
-			indices[6*i+2] = 6*i+2;
-			indices[6*i+3] = 6*i+3;
-			indices[6*i+4] = 6*i+2;
-			indices[6*i+5] = 6*i+1;
+			indices[6*i+0] = 4*i+0;
+			indices[6*i+1] = 4*i+1;
+			indices[6*i+2] = 4*i+2;
+			indices[6*i+3] = 4*i+3;
+			indices[6*i+4] = 4*i+0;
+			indices[6*i+5] = 4*i+2;
 		}
 		
 		mesh = [[GfxMesh alloc] init];
