@@ -3,7 +3,7 @@
 //  gameplay-proto
 //
 //  Created by döme on 02.01.09.
-//  Copyright 2009 Doemoetoer Gulyas. All rights reserved.
+//  Copyright 2009-2013 Doemoetoer Gulyas. All rights reserved.
 //
 
 #import "VectorMath.h"

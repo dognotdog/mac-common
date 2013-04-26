@@ -3,7 +3,7 @@
 //  colorspace
 //
 //  Created by Dömötör Gulyás on 23.06.2011.
-//  Copyright 2011 Dömötör Gulyás. All rights reserved.
+//  Copyright 2011-2013 Dömötör Gulyás. All rights reserved.
 //
 
 #import <Cocoa/Cocoa.h>

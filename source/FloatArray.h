@@ -3,7 +3,7 @@
 //  CityLife
 //
 //  Created by döme on 15.01.2010.
-//  Copyright 2010 Doemoetoer Gulyas. All rights reserved.
+//  Copyright 2010-2013 Doemoetoer Gulyas. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>

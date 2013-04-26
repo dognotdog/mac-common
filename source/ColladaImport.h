@@ -3,7 +3,7 @@
 //  gameplay-proto
 //
 //  Created by Doemoetoer Gulyas on 12.05.08.
-//  Copyright 2008 Doemoetoer Gulyas. All rights reserved.
+//  Copyright 2008-2013 Doemoetoer Gulyas. All rights reserved.
 //
 
 #import <Cocoa/Cocoa.h>

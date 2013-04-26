@@ -3,7 +3,7 @@
 //  JigsawGenerator
 //
 //  Created by DoG on 19.02.07.
-//  Copyright 2007 Doemoetoer Gulyas. All rights reserved.
+//  Copyright 2007-2013 Doemoetoer Gulyas. All rights reserved.
 //
 
 #import "SimplexNoise.h"

@@ -3,7 +3,7 @@
 //  TestTools
 //
 //  Created by döme on 10.14.08.
-//  Copyright 2008 Doemoetoer Gulyas. All rights reserved.
+//  Copyright 2008-2013 Doemoetoer Gulyas. All rights reserved.
 //
 
 #import <OpenGL/gl3.h>

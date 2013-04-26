@@ -3,7 +3,7 @@
 //  TestTools
 //
 //  Created by Dömötör Gulyás on 03.08.2011.
-//  Copyright 2011 Doemoetoer Gulyas. All rights reserved.
+//  Copyright 2011-2013 Doemoetoer Gulyas. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>

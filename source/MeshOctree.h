@@ -3,7 +3,7 @@
  *  TestTools
  *
  *  Created by döme on 01.27.09.
- *  Copyright 2009 Doemoetoer Gulyas. All rights reserved.
+ *  Copyright 2009-2013 Doemoetoer Gulyas. All rights reserved.
  *
  */
 
