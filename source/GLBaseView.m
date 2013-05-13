@@ -46,6 +46,9 @@ const NSString* GLBaseViewViewportKey = @"GLBaseViewViewport";
 @implementation GLBaseView
 {
 	NSThread* renderThread;
+	NSCondition* renderSleepCondition;
+	long renderPauseCounter;
+	BOOL renderingRequired;
 }
 
 @synthesize openGLContext, captureMouseEnabled, drawableBuffer, frameCount;
@@ -66,13 +69,47 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 	}
 }
 */
+
+- (void) resumeRendering
+{
+	[renderSleepCondition lock];
+	renderPauseCounter--;
+	[renderSleepCondition signal];
+	[renderSleepCondition unlock];
+}
+
+- (void) pauseRendering
+{
+	[renderSleepCondition lock];
+	renderPauseCounter++;
+	[renderSleepCondition unlock];
+}
+
+- (void) setNeedsRendering
+{
+	[renderSleepCondition lock];
+	renderingRequired = YES;
+	[renderSleepCondition signal];
+	[renderSleepCondition unlock];
+
+}
+
 - (void) threadedRender
 {
-	@autoreleasepool {
-		while (1)
-		{
+	while (1)
+	{
+		@autoreleasepool {
+			[renderSleepCondition lock];
+			while ((renderPauseCounter > 0) && !renderingRequired)
+				[renderSleepCondition wait];
+			renderingRequired = NO;
+			
+			
 			uint64_t nanosecs = mach_absolute_time();
+
 			[self getFrameForTime: nanosecs*1.0e-9];
+			[renderSleepCondition unlock];
+
 		}
 	}
 }
@@ -80,6 +117,9 @@ static CVReturn _displayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeS
 - (void) initThreadedRender
 {
 	renderThread = [[NSThread alloc] initWithTarget: self selector: @selector(threadedRender) object: nil];
+	
+	renderSleepCondition = [[NSCondition alloc] init];
+	renderingRequired = YES;
 	
 	[renderThread start];
 	

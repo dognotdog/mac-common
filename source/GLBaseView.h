@@ -43,6 +43,11 @@ typedef struct __CVDisplayLink *CVDisplayLinkRef;
 - (void) setupView;
 - (void) drawForTime: (double) outputTime;
 
+- (void) setNeedsRendering;
+- (void) pauseRendering;
+- (void) resumeRendering;
+
+
 @property(nonatomic, strong) GLDrawableBuffer* drawableBuffer;
 @property(nonatomic, strong) NSOpenGLContext* openGLContext;
 @property(nonatomic) BOOL captureMouseEnabled;
