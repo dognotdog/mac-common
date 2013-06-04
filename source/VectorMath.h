@@ -95,6 +95,17 @@ static inline int isfinite(double x) { return _finite(x); }
 
 #define SWAP(x,y) { typeof(x) tmp = x; x = y; y = tmp; }
 
+static long fcompare(double a, double b)
+{
+	return ((a < b) ? -1L : ((a > b) ? 1L : 0L));
+}
+
+static long fcompare_descending(double a, double b)
+{
+	return fcompare(b, a);
+}
+
+
 
 typedef VMATH_FLOAT_TYPE vmfloat_t;
 
@@ -126,11 +137,6 @@ typedef struct _rt
 	vector_t	maxv;
 } range3d_t;
 
-
-typedef struct v3i_s
-{
-	int x,y,z;
-} v3i_t;
 
 
 
@@ -1113,52 +1119,6 @@ static inline vector_t xRays2D(vector_t p0, vector_t r0, vector_t p2, vector_t r
 	vmfloat_t tb = b/d;
 	
 	return vCreateDir(ta, tb, 0.0);
-}
-
-
-static inline v3i_t v3iCreate(int i, int j, int k)
-{
-	return (v3i_t){i,j,k};
-}
-
-static inline v3i_t v3iAdd(v3i_t a, v3i_t b)
-{
-	return (v3i_t){a.x+b.x, a.y+b.y, a.z+b.z};
-}
-
-static inline v3i_t v3iSub(v3i_t a, v3i_t b)
-{
-	return (v3i_t){a.x-b.x, a.y-b.y, a.z-b.z};
-}
-
-static inline int v3iEqual(v3i_t a, v3i_t b)
-{
-	return (a.x==b.x) && (a.y==b.y) && (a.z==b.z);
-}
-
-static inline v3i_t v3iMin(v3i_t a, v3i_t b)
-{
-	return (v3i_t){MIN(a.x,b.x), MIN(a.y,b.y), MIN(a.z,b.z)};
-}
-
-static inline v3i_t v3iMax(v3i_t a, v3i_t b)
-{
-	return (v3i_t){MAX(a.x,b.x), MAX(a.y,b.y), MAX(a.z,b.z)};
-}
-
-static inline int v3iSum(v3i_t a)
-{
-	return a.x+a.y+a.z;
-}
-static inline int v3iProduct(v3i_t a)
-{
-	return a.x*a.y*a.z;
-}
-
-static inline int v3iRangesIntersect(v3i_t mina, v3i_t maxa, v3i_t minb, v3i_t maxb)
-{
-	return (mina.x < maxb.x) && (mina.y < maxb.y) && (mina.z < maxb.z)
-		&& (minb.x < maxa.x) && (minb.y < maxa.y) && (minb.z < maxa.z);
 }
 
 
