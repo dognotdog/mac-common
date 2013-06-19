@@ -17,12 +17,13 @@
 	BOOL		requiresUpdate;
 }
 
-
+/*
 - (void) drawWithBounds:(NSRect)bounds withShader: (GfxShader*) shader;
 - (void) drawCenteredAtPoint:(NSPoint)point scaled: (double) scale withShader: (GfxShader*) shader;
 - (void) drawAtPoint:(NSPoint)point scaled: (double) scale withShader: (GfxShader*) shader;
 - (void) drawAtPoint:(NSPoint)point withShader: (GfxShader*) shader;
 - (void) drawCenteredAtPoint:(NSPoint)point withShader: (GfxShader*) shader;
+*/
 
 - (GLuint) texName; // 0 if no texture allocated
 

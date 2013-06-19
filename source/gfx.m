@@ -163,7 +163,7 @@ static int _extension_supported(const char *extension)
 
 - (NSArray*) flattenToMeshes
 {
-	NSMutableArray* ary = [NSArray array];
+	NSMutableArray* ary = [NSMutableArray array];
 	return ary;
 }
 
@@ -2054,8 +2054,7 @@ static int _extension_supported(const char *extension)
 
 - (NSArray*) flattenToMeshes
 {
-	NSMutableArray* ary = [NSArray arrayWithObject: self];
-	return ary;
+	return @[self];
 }
 
 @synthesize drawSelector, transform, texture, textureMatrix, numTexCoords, texCoords, numNormals, normals, numVertices, vertices, numIndices, indices, vertexBounds, colors, numColors;
@@ -2328,8 +2327,7 @@ static GLint _viewportCache[4];
 
 - (NSArray*) flattenToMeshes
 {
-	NSMutableArray* ary = [NSArray array];
-	return ary;
+	return @[];
 }
 
 - (void) dealloc

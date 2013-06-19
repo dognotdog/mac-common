@@ -6,6 +6,6 @@
 //  Copyright (c) 2013 Dömötör Gulyás. All rights reserved.
 //
 
-#include <CoreGraphics/CoreGraphics.h>
+#include <ApplicationServices/ApplicationServices.h>
 #include "VectorMath_fixp.h"
 

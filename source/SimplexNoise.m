@@ -83,7 +83,7 @@ static float sumFA(float *v, uint32_t n)
 	return res;
 };
 
-
+/*
 static vector_t atv(uint32_t* array)
 {
 	vector_t res;
@@ -91,7 +91,7 @@ static vector_t atv(uint32_t* array)
 		res.farr[i] = array[i];
 	return res;
 };
-
+*/
 static float vsum(vector_t v)
 {
 	return v.farr[0]+v.farr[1]+v.farr[2];

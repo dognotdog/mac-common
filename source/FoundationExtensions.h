@@ -26,7 +26,7 @@ void dispatch_coalesce(dispatch_source_t src, double time, void (^block)(void));
 - (NSArray*) arrayByRemovingObjectsInArray: (NSArray*) ary;
 - (NSArray*) arrayByRemovingLastObject;
 
-- (NSArray*) continuousSubarraysWithCommonProperty: (BOOL (^)(id referenceObject, id obj)) block;
+//- (NSArray*) continuousSubarraysWithCommonProperty: (BOOL (^)(id referenceObject, id obj)) block;
 - (NSArray*) arraysByDeinterleavingColumns: (NSUInteger) numColumns;
 - (NSArray*) arraysBySlicingAfterLimit: (NSUInteger) numLimit;
 

@@ -6,6 +6,8 @@
 //  Copyright (c) 2011 Doemoetoer Gulyas. All rights reserved.
 //
 
+@import OpenGL.GL3;
+
 #import <Foundation/Foundation.h>
 
 #import "VectorMath.h"

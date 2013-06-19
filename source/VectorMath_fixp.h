@@ -415,6 +415,12 @@ static inline r3i_t riUnionRange(r3i_t a, r3i_t b)
 	return r;
 }
 
+static inline long riCheckIntersection2D(r3i_t a, r3i_t b)
+{
+	r3i_t r = {v3iMax(a.min, b.min), v3iMin(a.max, b.max)};
+	v3i_t d = v3iSub(r.max, r.min);
+	return (d.x >= 0) && (d.y >= 0);
+}
 
 static inline long iFractionCompare(vmlong_t anum, vmint_t aden, vmlong_t bnum, vmint_t bden)
 {
@@ -428,7 +434,7 @@ static inline long iFractionCompare(vmlong_t anum, vmint_t aden, vmlong_t bnum, 
 		return 0L;
 }
 
-static inline long xiLineSegments2DFrac(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, vmlong_t* outTnum, vmlong_t* outUnum, vmlong_t* outDen)
+static inline long xiLineSegments2DFrac_broken(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, vmlong_t* outTnum, vmlong_t* outUnum, vmlong_t* outDen)
 {
 	v3i_t r = v3iSub(p1, p0);
 	v3i_t s = v3iSub(q1, q0);
@@ -451,14 +457,10 @@ static inline long xiLineSegments2DFrac(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1, 
 	return (tnum > 0) && (tnum < den) && (unum > 0) && (unum < den);
 }
 
-static inline long xiLineSegments2D(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
+static inline long xiLineSegments2D_broken(v3i_t p0, v3i_t p1, v3i_t q0, v3i_t q1)
 {
+	assert(0); // FIXME: doesnt work right
 	vmlong_t tnum = -1, unum = -1, den = 0;
-	return xiLineSegments2DFrac(p0, p1, q0, q1, &tnum, &unum, &den);
-}
-
-static inline bisector3i_t iBisector(v3i_t e0, v3i_t e1)
-{
-	
+	return xiLineSegments2DFrac_broken(p0, p1, q0, q1, &tnum, &unum, &den);
 }
 

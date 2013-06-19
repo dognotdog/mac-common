@@ -632,7 +632,7 @@
 
 - (void) setString:(NSString *)aString withAttributes:(NSDictionary *)attribs // set string after initial creation
 {
-	[self setString: [[NSAttributedString alloc] initWithString:aString attributes:attribs]];
+	[self setString: (id)[[NSAttributedString alloc] initWithString:aString attributes:attribs]];
 }
 
 @synthesize textColor;

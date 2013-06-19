@@ -1181,6 +1181,8 @@ static inline void glNormal(vector_t v)
 
 #ifdef __OBJC__
 
+@import Foundation;
+
 @protocol VectorMath
 - (range3d_t) boundingBox;
 - (void) getBoundingBox: (range3d_t*) box;
