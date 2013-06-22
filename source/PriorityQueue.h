@@ -8,11 +8,10 @@
 
 #import <Foundation/Foundation.h>
 
-typedef NSComparisonResult(^PriorityQueueCompareBlock)(id obj0, id obj1);
 
 @interface PriorityQueue : NSObject
 
-- (id) initWithCompareBlock: (PriorityQueueCompareBlock) block;
+- (id) initWithCompareBlock: (NSComparator) block;
 
 - (void) addObject: (id) obj;
 - (NSArray*) allObjects;

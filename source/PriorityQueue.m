@@ -11,7 +11,7 @@
 @implementation PriorityQueue
 {
 	CFBinaryHeapRef heap;
-	PriorityQueueCompareBlock compareBlock;
+	NSComparator compareBlock;
 }
 
 static const void *_heapRetain(CFAllocatorRef allocator, const void *ptr)
@@ -54,7 +54,7 @@ CFStringRef	_heapCopyDescription(const void *ptr)
 	return self;
 }
 
-- (id) initWithCompareBlock: (PriorityQueueCompareBlock) block
+- (id) initWithCompareBlock: (NSComparator) block
 {
 	if (!(self = [super init]))
 		return nil;
