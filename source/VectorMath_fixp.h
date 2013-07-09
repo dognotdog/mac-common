@@ -26,6 +26,11 @@ static inline long ulcompare(unsigned long a, unsigned long b)
 	return ((a < b) ? -1L : ((a > b) ? 1L : 0L));
 }
 
+static inline long lcompare(long a, long b)
+{
+	return ((a < b) ? -1L : ((a > b) ? 1L : 0L));
+}
+
 static inline long i32compare(int32_t a, int32_t b)
 {
 	return ((a < b) ? -1L : ((a > b) ? 1L : 0L));
@@ -97,6 +102,12 @@ static inline vector_t v3iToFloat(v3i_t a)
 {
 	double scale = 1 << a.shift;
 	return (vector_t){a.x/scale, a.y/scale, a.z/scale, 1.0};
+}
+
+static inline v3i_t	v3iCreateFromFloat(float x, float y, float z, int shift)
+{
+	double scale = 1 << shift;
+	return (v3i_t){x*scale, y*scale, z*scale, shift};
 }
 
 static inline CGPoint v3iToCGPoint(v3i_t a)
