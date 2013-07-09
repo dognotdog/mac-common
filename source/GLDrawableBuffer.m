@@ -81,6 +81,7 @@
 		id dummy = [drawables objectForKey: key];
 		if (dummy)
 			[dummyArray addObject: dummy]; // FIXME: attempt to discover what's crashing no release exactly
+		// the above in one case shows dummy to be a non-object, indicating overreleasing
 		if (obj)
 			[drawables setObject: obj forKey: key];
 		else

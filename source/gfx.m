@@ -177,6 +177,7 @@ static int _extension_supported(const char *extension)
 
 - (void) setTexture:(GfxTexture *)tex atIndex:(GLuint)index
 {
+	assert(!tex || [tex isKindOfClass: [GfxTexture class]]);
 	textures[index] = tex;
 }
 
@@ -2523,17 +2524,20 @@ static GLint _viewportCache[4];
 {
 	matrix_t m = [self localTransform];
 	range3d_t r = rInfRange();
-	for (id child in children)
+	@synchronized(children)
 	{
-		if ([child respondsToSelector: @selector(vertexBounds)])
+		for (id child in children)
 		{
-			range3d_t rc = [child vertexBounds];
-			if (!rIsEmptyRange(rc))
+			if ([child respondsToSelector: @selector(vertexBounds)])
 			{
-				range3d_t rcm = mTransformRangeRobust(m, rc);
-				assert(!vIsNAN(rcm.minv) && !vIsNAN(rcm.maxv));
-				r = rUnionRange(r, rcm);
-				assert(!vIsNAN(r.minv) && !vIsNAN(r.maxv));
+				range3d_t rc = [child vertexBounds];
+				if (!rIsEmptyRange(rc))
+				{
+					range3d_t rcm = mTransformRangeRobust(m, rc);
+					assert(!vIsNAN(rcm.minv) && !vIsNAN(rcm.maxv));
+					r = rUnionRange(r, rcm);
+					assert(!vIsNAN(r.minv) && !vIsNAN(r.maxv));
+				}
 			}
 		}
 	}
@@ -2543,11 +2547,14 @@ static GLint _viewportCache[4];
 
 - (void) addTrianglesToOctree: (MeshOctree*) octree
 {
-	for (id child in children)
+	@synchronized(children)
 	{
-		if ([child respondsToSelector: @selector(addTrianglesToOctree:)])
+		for (id child in children)
 		{
-			[child addTrianglesToOctree: octree];
+			if ([child respondsToSelector: @selector(addTrianglesToOctree:)])
+			{
+				[child addTrianglesToOctree: octree];
+			}
 		}
 	}
 }
@@ -2555,9 +2562,12 @@ static GLint _viewportCache[4];
 - (NSArray*) flattenToMeshes
 {
 	NSMutableArray* ary = [NSMutableArray array];
-	for (id child in children)
+	@synchronized(children)
 	{
-		[ary addObjectsFromArray: [child flattenToMeshes]];
+		for (id child in children)
+		{
+			[ary addObjectsFromArray: [child flattenToMeshes]];
+		}
 	}
 	return ary;
 }
