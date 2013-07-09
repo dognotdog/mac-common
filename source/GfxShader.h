@@ -10,8 +10,6 @@
 
 #import "VectorMath.h"
 
-@import OpenGL.GL3;
-
 
 void glUniformMatrix3(GLint uloc, matrix_t m);
 void glUniformMatrix4(GLint uloc, matrix_t m);

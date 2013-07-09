@@ -226,6 +226,17 @@ void	_LogGLError(NSString* str);
 
 @end
 
+@interface GfxBlendingNode : NSObject
+{
+	BOOL blendingEnabled;
+	GLint srcMode, dstMode;
+}
+
+@property(nonatomic) BOOL blendingEnabled;
+@property(nonatomic) GLint srcMode, dstMode;
+
+@end
+
 
 @interface SimpleMaterialNode : NSObject
 {

@@ -1436,7 +1436,8 @@ static BOOL _gfx_isMipmappingSupported = NO;
 
 - (void) dealloc
 {
-	free(pixels);
+	if (pixels)
+		free(pixels);
 }
 
 - (GLsizei) width
