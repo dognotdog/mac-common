@@ -10,6 +10,9 @@
 
 #import "VectorMath.h"
 
+#import <OpenGL/gltypes.h>
+
+
 @class GfxShader, GfxTexture, GfxFramebufferObject;
 
 @interface GfxStateStack : NSObject
