@@ -262,7 +262,7 @@ static inline long CGPointInTriangle(CGPoint p, CGPoint a0, CGPoint a1, CGPoint 
 	
 }
 
-static long CGPointInCircumCircule(CGPoint d, CGPoint a, CGPoint b, CGPoint c)
+static inline long CGPointInCircumCircule(CGPoint d, CGPoint a, CGPoint b, CGPoint c)
 {
 	float m[3][3] = {
 		{ a.x-d.x, b.x-d.x, c.x-d.x },

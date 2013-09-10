@@ -14,6 +14,21 @@ const char* vectorMathNumberFormat = "d";
 const char* vectorMathNumberFormat = "f";
 #endif
 
+NSAffineTransform* mToAffineTransform(matrix_t m)
+{
+	NSAffineTransformStruct ts;
+	ts.m11 = m.varr[0].farr[0];
+	ts.m12 = m.varr[0].farr[1];
+	ts.m21 = m.varr[1].farr[0];
+	ts.m22 = m.varr[1].farr[1];
+	ts.tX = m.varr[3].farr[0];
+	ts.tY = m.varr[3].farr[1];
+	
+	NSAffineTransform* transform = [[NSAffineTransform alloc] init];
+	transform.transformStruct = ts;
+	return transform;
+}
+
 @implementation NSValue (VectorMath)
 
 + (id) valueWithVector: (vector_t) v

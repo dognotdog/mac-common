@@ -92,6 +92,12 @@ typedef struct bisector3i_s
 } bisector3i_t;
 
 
+static inline vmintfix_t iFixCreateFromFloat(vmfloat_t x, int shift)
+{
+	double scale = 1 << shift;
+	return (vmintfix_t){x*scale, shift};
+}
+
 
 static inline v3i_t v3iCreate(int i, int j, int k, int shift)
 {
@@ -104,7 +110,7 @@ static inline vector_t v3iToFloat(v3i_t a)
 	return (vector_t){a.x/scale, a.y/scale, a.z/scale, 1.0};
 }
 
-static inline v3i_t	v3iCreateFromFloat(float x, float y, float z, int shift)
+static inline v3i_t	v3iCreateFromFloat(vmfloat_t x, vmfloat_t y, vmfloat_t z, int shift)
 {
 	double scale = 1 << shift;
 	return (v3i_t){x*scale, y*scale, z*scale, shift};
@@ -431,6 +437,16 @@ static inline long riCheckIntersection2D(r3i_t a, r3i_t b)
 	r3i_t r = {v3iMax(a.min, b.min), v3iMin(a.max, b.max)};
 	v3i_t d = v3iSub(r.max, r.min);
 	return (d.x >= 0) && (d.y >= 0);
+}
+
+static inline range3d_t	riToFloat(r3i_t ri)
+{
+	return (range3d_t){v3iToFloat(ri.min), v3iToFloat(ri.max)};
+}
+
+static inline r3i_t riCreateFromFloat(range3d_t rf, int shift)
+{
+	return (r3i_t){v3iCreateFromFloat(rf.minv.farr[0], rf.minv.farr[1], rf.minv.farr[2], shift), v3iCreateFromFloat(rf.maxv.farr[0], rf.maxv.farr[1], rf.maxv.farr[2], shift)};
 }
 
 static inline long iFractionCompare(vmlong_t anum, vmint_t aden, vmlong_t bnum, vmint_t bden)

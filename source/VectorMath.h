@@ -95,12 +95,12 @@ static inline int isfinite(double x) { return _finite(x); }
 
 #define SWAP(x,y) { typeof(x) tmp = x; x = y; y = tmp; }
 
-static long fcompare(double a, double b)
+static inline long fcompare(double a, double b)
 {
 	return ((a < b) ? -1L : ((a > b) ? 1L : 0L));
 }
 
-static long fcompare_descending(double a, double b)
+static inline long fcompare_descending(double a, double b)
 {
 	return fcompare(b, a);
 }
@@ -541,6 +541,12 @@ static inline vector_t vAddRaw(vector_t a, vector_t b)
 	return vCreate(a.farr[0] + b.farr[0],a.farr[1] + b.farr[1],a.farr[2] + b.farr[2],a.farr[3] + b.farr[3]);
 #endif
 }
+
+static inline vector_t vScaleRaw(vector_t a, vmfloat_t b)
+{
+	return vCreate(a.farr[0]*b, a.farr[1]*b, a.farr[2]*b, a.farr[3]*b);
+}
+
 
 static inline vector_t vAdd3D(vector_t a, vector_t b)
 {
@@ -1181,7 +1187,7 @@ static inline void glNormal(vector_t v)
 
 #ifdef __OBJC__
 
-@import Foundation;
+#import <Foundation/Foundation.h>
 
 @protocol VectorMath
 - (range3d_t) boundingBox;
@@ -1209,6 +1215,8 @@ static inline void glNormal(vector_t v)
 
 @end
 
+//@class NSAffineTransform;
+NSAffineTransform* mToAffineTransform(matrix_t m);
 
 #endif
 
